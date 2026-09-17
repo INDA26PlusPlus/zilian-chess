@@ -54,6 +54,10 @@ impl Board {
     pub fn get_piece_square(&self, square: &Square) -> Option<ChessPiece> {
         self.squares[square.file as usize][square.rank as usize]
     }
+    // Gets piece from given index
+    pub fn get_piece_file_rank(&self, file: i8, rank: i8) -> Option<ChessPiece> {
+        return self.get_piece_square(&Square::new_square_from_index(file, rank).unwrap());
+    }
 
     // Moves (Really just copies then removes) whats on start to stop.
     pub fn move_piece_square(&mut self, start: &Square, stop: &Square) {
@@ -89,7 +93,7 @@ impl Square {
 
     // Make new square from two values.
     pub fn new_square_from_index(file: i8, rank: i8) -> Option<Self> {
-        if file < 8 && rank < 8 {
+        if file >= 0 && file < 8 && rank >= 0 && rank < 8 {
             Some(Self {file, rank})
         }
         else {

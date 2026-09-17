@@ -1,7 +1,9 @@
 // Protip Alt+z to read the comments, they are quite long sometimes and text wrapping makes life easier
 
+use std::io::pipe;
+
 use crate::board::{Board, Square};
-use crate::pieces::PieceType;
+use crate::pieces::PieceType::{self, Bishop};
 
 // What is a move?
 // One place to another
@@ -15,7 +17,7 @@ pub struct Move {
 
 impl Move {
 
-    // Looks at what's on `start` and branches to the matching piece check.
+    // Runs different movement checks depending on starting piece.
     pub fn check_move(board: &Board, start: &Square, stop: &Square) -> bool {
 
         // Gets piece at start and check
@@ -34,9 +36,20 @@ impl Move {
         }
     }
 
-    // Move diagonal any direction, endless steps.
+    // Move diagonal in all directions, steps until collision.
     fn bishop_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        false
+        const BISHOP_MOVE_DIRECTION: [(i8, i8); 4] = [
+            (1,1),  (1,-1),
+            (-1,1), (-1,-1),
+        ];
+
+        // Goes through each direction using stepping method.
+        for direction in BISHOP_MOVE_DIRECTION {
+            if Self::direction_stepping(board, start, stop, direction) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Move cardinally any direction, endless steps.
@@ -51,18 +64,6 @@ impl Move {
 
     // Move 2+1 in any direction. 1 step
     fn knight_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        // I'll start with the knight since it has the most basic logic, can jump over pieces and has no special rules or flags.
-
-        // Say knight on b1 wants to move to a3, it will check the different movement vectors of the knight, going from (2,1), (2,-1), (1,2), (1,-2), (-1,2), (-1,-2), (-2, 1), (-2, -1) where the first value is the vertical (rank) change and the second is the horizontal (file)
-        // We go through each of these, if we are about to exit the bounds of the board we return false, if none match we return false, otherwise true
-
-        // We also need to check that the destination square (stop) square doesn't contain a piece of the same color, we then refer to the "destination_color" check method
-
-        // If both of these are true, meaning we won't capture our own piece, we wont go out of bounds the move is valid
-
-        // NOTE: We can't let a move expose our king, but this would mean checking if ANY of the enemy pieces can see our king, since we haven't made the movement logic for the rest of the pieces, we wont add this check until later
-
-        // Declare the ways a knight can move
         const KNIGHT_MOVES: [(i8, i8); 8] = [
             (2,1),  (2,-1),  (1,2),   (1,-2), 
             (-1,2), (-1,-2), (-2, 1), (-2, -1),
@@ -97,6 +98,52 @@ impl Move {
         // Flag piece
     fn pawn_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
         true
+    }
+
+    // Takes a single direction and steps in that direction repeatedly until boundary or another piece is hit.
+    fn direction_stepping(board: &Board, start: &Square, stop: &Square, direction: (i8, i8)) -> bool {
+
+        // Starting piece (important later for )
+        let starting_piece = board.get_piece_square(start).unwrap();
+        let (rank_change, file_change) = direction; // Extract value from tuple
+
+        let mut rank = start.rank();
+        let mut file = start.file();
+
+        loop {
+            // Takes step
+            rank = rank + rank_change;
+            file = file + file_change;
+
+            // Go to new direction outside boundary
+            if (0 > rank || rank >= 8 || 0 > file || file >= 8) {
+                break;
+            }
+
+            // Given that new step is in bounds, what piece is it?
+            let stepped_piece = board.get_piece_file_rank(file, rank);
+
+            match stepped_piece {
+                Some(piece) => {
+                    // Hit a piece
+                    if rank == stop.rank() && file == stop.file() {
+                        // Allow capturing if colors are different.
+                        return starting_piece.is_white() != piece.is_white();
+                    }
+                    break; // Can't go further
+                }
+
+                None => {
+                    // Hit nothing
+                    if rank == stop.rank() && file == stop.file() {
+                        return true;
+                    }
+                    // Keep 'er goin'
+                }
+            }
+        }
+
+        return false;
     }
 
     // If nothing blocks the final destination then valid
@@ -199,7 +246,7 @@ mod tests {
         }
 
         #[test]
-        fn knight_self_capture() {
+        fn knight_team_capture() {
             // Try white on white knight capture
             let board = Board::board_from_strings([
             "........",
@@ -216,5 +263,16 @@ mod tests {
             assert!(!Move::check_move(&board, &start, &stop));
         }
 
+    }
+
+
+
+        mod bishop_test {
+        use super::*;
+
+        #[test]
+        fn bishop_valid_move() {
+            !todo!()
+        }
     }
 }
