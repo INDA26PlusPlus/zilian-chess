@@ -61,7 +61,8 @@ impl ChessGame {
         };
 
         // No piece to move
-        let piece = match self.board_state.get_piece_square(&start_square) {
+        // Mark th piece as mutable for later
+        let mut piece = match self.board_state.get_piece_square(&start_square) {
             Some(piece) => piece,
             None => return Err(format!("Starting Square Empty [{}]", start)),
         };
@@ -77,7 +78,11 @@ impl ChessGame {
         }
         
         // If no errors move is valid, do move and change turn
+        // Mark piece as having moved
+        piece.has_moved_true();
+        self.board_state.set_piece_square(&start_square, Some(piece));
         self.board_state.move_piece_square(&start_square, &stop_square);
+
         self.is_white_turn = !self.is_white_turn;
         Ok(())
     }
