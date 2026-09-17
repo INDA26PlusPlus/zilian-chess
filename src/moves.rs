@@ -54,12 +54,34 @@ impl Move {
 
     // Move cardinally any direction, endless steps.
     fn rook_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        false
+        const ROOK_MOVE_DIRECTION: [(i8, i8); 4] = [
+            (1,0),  (-1,0),
+            (0,1), (0,-1),
+        ];
+
+        // Goes through each direction using stepping method.
+        for direction in ROOK_MOVE_DIRECTION {
+            if Self::direction_stepping(board, start, stop, direction) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Combination of rook and bishop
     fn queen_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        false
+        const QUEEN_MOVE_DIRECTION: [(i8, i8); 8] = [
+            (1,1),  (1,-1),  (1,0), (-1,0),
+            (-1,1), (-1,-1), (0,1), (0,-1),
+        ];
+
+        // Goes through each direction using stepping method.
+        for direction in QUEEN_MOVE_DIRECTION {
+            if Self::direction_stepping(board, start, stop, direction) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Move 2+1 in any direction. 1 step
