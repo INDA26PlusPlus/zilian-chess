@@ -103,6 +103,7 @@ impl Move {
             }
         }
 
+        // Checks that move is valid and if capture, it's not same piece.
         return move_match && !board.is_same_color(start, stop);
     }
 
@@ -111,7 +112,25 @@ impl Move {
     // If friendly rook with has_moved = false and king has_moved = false
         // Allow castle by taking 2 steps to the rook and moving the rook next to the king
     fn king_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        false
+        const KING_MOVES: [(i8, i8); 8] = [
+            (1,1),  (1,-1),  (1,0), (-1,0),
+            (-1,1), (-1,-1), (0,1), (0,-1),
+        ];
+
+        let mut move_match = false;
+
+        let rank_change = stop.rank() - start.rank();
+        let file_change = stop.file() - start.file();
+
+        for (rank_move, file_move) in KING_MOVES {
+            if rank_move == rank_change && file_move == file_change {
+                move_match = true;
+            }
+        }
+
+        // Checks that move is valid and if capture, it's not same piece.
+        return move_match && !board.is_same_color(start, stop);
+
     }
 
     // Since a Pawn doesn't "step" like a Rook, Bishop or Queen
@@ -432,7 +451,6 @@ mod tests {
             assert!(Move::check_move(&board, &start, &stop));
         }
     }
-
 
     mod knight_tests {
         use super::*;
