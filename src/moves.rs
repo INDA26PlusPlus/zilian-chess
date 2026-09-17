@@ -287,14 +287,234 @@ mod tests {
 
     }
 
-
-
-        mod bishop_test {
+    mod bishop_test {
         use super::*;
 
         #[test]
         fn bishop_valid_move() {
-            !todo!()
+            // Try a valid bishop move on empty board
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...B....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("h8").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn bishop_enemy_capture() {
+            // Try valid white on black bishop capture 
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...B....",
+            "........",
+            ".p......",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("b2").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+
+        #[test]
+        fn bishop_invalid_move() {
+            // Try moving bishop in invalid way
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...B....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn bishop_team_capture() {
+            // Try white on white bishop capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "..P.....",
+            "...B....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("c5").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+    }
+
+     mod rook_test {
+        use super::*;
+
+        #[test]
+        fn rook_valid_move() {
+            // Try a valid rook move on empty board
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...R....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("d8").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn rook_enemy_capture() {
+            // Try valid black on white rook capture 
+            let board = Board::board_from_strings([
+            "r.....P.",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("a8").unwrap();
+            let stop= Square::square_from_notation_str("g8").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+
+        #[test]
+        fn rook_invalid_move() {
+            // Try moving rook in invalid way
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "......R.",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("g3").unwrap();
+            let stop= Square::square_from_notation_str("f4").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn rook_team_capture() {
+            // Try black on black rook capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...R....",
+            "........",
+            "...P....",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("d2").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+    }
+
+    mod queen_test {
+        use super::*;
+
+        #[test]
+        fn queen_valid_move() {
+            // Try a valid queen move on empty board
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...q....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("d6").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn queen_enemy_capture() {
+            // Try valid black on white queen capture 
+            let board = Board::board_from_strings([
+            "........",
+            ".q......",
+            "........",
+            "...P....",
+            "........",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("b7").unwrap();
+            let stop= Square::square_from_notation_str("d5").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+
+        #[test]
+        fn queen_invalid_move() {
+            // Try moving queen in invalid way
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...Q....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn queen_team_capture() {
+            // Try white on white queen capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...Q....",
+            "........",
+            "...P....",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("d2").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
         }
     }
 }
