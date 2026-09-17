@@ -5,35 +5,36 @@
 
 use zilian_chess::board::{Board, Square};
 use zilian_chess::pieces::ChessPiece;
+use zilian_chess::game::ChessGame;
 
 
 fn main () {
 
-    /*
-    // Makes an empty board and places two pieces on it.
-    let mut board = Board::new_empty_board();
-
-    let square = Square::new_square_from_index(3, 2).unwrap();
-    let chess_piece = ChessPiece::piece_from_letter('n', false);
-    board.set_piece_square(square, chess_piece);
-
-    let square = Square::new_square_from_notation('a', 5).unwrap();
-    let chess_piece = ChessPiece::piece_from_letter('P', false);
-    board.set_piece_square(square, chess_piece);
-    */
-
-    // Makes a starting position board
-    let mut board = Board::new_starting_board();
+    // Makes a starting position board now as part of a new "game"
+    let mut game: ChessGame = ChessGame::new_game(Board::new_starting_board(), true);
 
     // Displays the board
     println!("------------------");
-    display_board(board);
+    display_board(game.board());
     println!("------------------");
-    
+
+    /*
+    The move should happen as part of a game
+    ChessGame should check with Moves to see if the move is valid given th board an piece 
+    (also things like flags for en passant ect)
+    The move is then made and can be shown to the user
+    )
+    */
+    game.make_move("e2", "e3");
+
+    // Displays the board
+    println!("222222222222222222");
+    display_board(game.board());
+    println!("------------------");
 }
 
 // Display function that goes through rank and file and attaches a grid
-fn display_board (board: Board) {
+fn display_board (board: &Board) { // Displays copies of the board since we're can't let ownership leave ChessGame
     for rank in (0..8).rev() {
         print!("{} ", rank + 1);
         for file in 0..8 {

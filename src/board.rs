@@ -46,13 +46,20 @@ impl Board {
     }
 
     // Sets a piece on a given square.
-    pub fn set_piece_square(&mut self, square: Square, chess_piece: Option<ChessPiece>) {
+    pub fn set_piece_square(&mut self, square: &Square, chess_piece: Option<ChessPiece>) {
         self.squares[square.file as usize][square.rank as usize] = chess_piece;
     }
 
     // Gets the piece from a given square.
     pub fn get_piece_square(&self, square: &Square) -> Option<ChessPiece> {
         self.squares[square.file as usize][square.rank as usize]
+    }
+
+    // Moves (Really just copies then removes) whats on start to stop.
+    pub fn move_piece_square(&mut self, start: &Square, stop: &Square) {
+        let piece = self.get_piece_square(start);
+        self.set_piece_square(start, None);
+        self.set_piece_square(stop, piece);
     }
 
 }
@@ -100,6 +107,19 @@ impl Square {
         }
         
         return Self::new_square_from_index(converted_file, converted_rank);
+    }
+
+    // Turns a string of chess notation "a1" into a Square.
+    pub fn square_from_notation_str(notation_string: &str) -> Option<Self> {
+        // Not Good
+        if notation_string.len() != 2 {
+            return None;
+        }
+
+        let rank: u8 = notation_string.chars().nth(1).unwrap().to_digit(10).unwrap() as u8;
+        let file: char = notation_string.as_bytes()[0] as char;
+
+        Self::new_square_from_notation(file, rank)
     }
 
     // Getter's

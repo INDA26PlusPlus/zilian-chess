@@ -65,4 +65,20 @@ impl ChessPiece {
         return letter;
     }
 
+    // Getter's
+    pub fn piece_type(&self) -> PieceType {
+        self.piece_type
+    }
+    pub fn is_white(&self) -> bool {
+        self.is_white
+    }
+    pub fn has_moved(&self) -> bool {
+        self.has_moved
+    }
+    
+    // Setter's
+    pub fn has_moved_true(&mut self) {
+        self.has_moved = true;
+    }
+ 
 }
