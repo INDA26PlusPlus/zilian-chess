@@ -32,11 +32,16 @@ fn main () {
             .read_line(&mut input_stop)
             .expect("Failed to read line");
 
-        game.make_move(
+        // Makes move and matches output with either OK (move successful)
+        // Or Err (error occurred)
+        match game.make_move(
             &input_start.trim().to_lowercase(),
             &input_stop.trim().to_lowercase()
-        );
-    }
+            ) {
+                Ok(()) => {},
+                Err(message) => println!("{}", message)
+            }
+        }
 
     /*
     The move should happen as part of a game
@@ -50,7 +55,7 @@ fn main () {
 // Display function that goes through rank and file and attaches a grid
 fn display_board (board: &Board) { // Displays copies of the board since we're can't let ownership leave ChessGame
     for rank in (0..8).rev() {
-        print!("{} ", rank + 1);
+        print!("{} |", rank + 1);
         for file in 0..8 {
             let square = Square::new_square_from_index(file, rank).unwrap();
             let piece = board.get_piece_square(&square);
@@ -58,5 +63,6 @@ fn display_board (board: &Board) { // Displays copies of the board since we're c
         }
         println!();
     }
-    println!("  a b c d e f g h");
+    println!("------------------");
+    println!("  |a b c d e f g h");
 }

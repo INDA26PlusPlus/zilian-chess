@@ -46,23 +46,40 @@ impl ChessGame {
 
     // Gets a start and stop square
     // "Checks" if it's valid and executes.
-    pub fn make_move(&mut self, start: &str, stop: &str) {
-        let start_square = Square::square_from_notation_str(start).unwrap();
-        let stop_square = Square::square_from_notation_str(stop).unwrap();
+    // Prints relevant error depending on where move fails/ why is invalid
+    pub fn make_move(&mut self, start: &str, stop: &str) -> Result<(), String> {
+        
+        // Can't make square from start string
+        let start_square = match Square::square_from_notation_str(start) {
+            Some(square) => square,
+            None => return Err(format!("Invalid Starting Square [{}]", start)),
+        };
+        // Can't make square from stop string
+        let stop_square = match Square::square_from_notation_str(stop) {
+            Some(square) => square,
+            None => return Err(format!("Invalid Stopping Square [{}]", stop)),
+        };
 
-        // Checks that the piece being moved is the same as the color of who's turn it is
+        // No piece to move
         let piece = match self.board_state.get_piece_square(&start_square) {
             Some(piece) => piece,
-            None => return,
+            None => return Err(format!("Starting Square Empty [{}]", start)),
         };
+
+        // Checks that the piece being moved is the same as the color of who's turn it is
         if piece.is_white() != self.is_white_turn {
-            return;
+            return Err(format!("Not your piece [{}], it's {}", start, self.turn_text()));
         }
 
-        if Move::check_move(&self.board_state, &start_square, &stop_square) {
-            self.board_state.move_piece_square(&start_square, &stop_square);
-            self.is_white_turn = !self.is_white_turn;
+        //
+        if !Move::check_move(&self.board_state, &start_square, &stop_square) {
+            return Err(format!("Illegal move for that piece {:#?} to move from {} to {}",self.board_state.get_piece_square(&start_square) ,start, stop));
         }
+        
+        // If no errors move is valid, do move and change turn
+        self.board_state.move_piece_square(&start_square, &stop_square);
+        self.is_white_turn = !self.is_white_turn;
+        Ok(())
     }
 
 }
