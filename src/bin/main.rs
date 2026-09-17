@@ -28,7 +28,7 @@ fn main () {
     game.make_move("e2", "e3");
 
     // Displays the board
-    println!("222222222222222222");
+    println!("------------------");
     display_board(game.board());
     println!("------------------");
 }
