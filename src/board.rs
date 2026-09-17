@@ -62,18 +62,33 @@ impl Board {
         self.set_piece_square(stop, piece);
     }
 
+    // Checks if two squares have same color
+    pub fn is_same_color(&self, start: &Square, stop: &Square) -> bool {
+        let start_piece = match self.get_piece_square(start) {
+            Some(piece) => piece,
+            None => return false,
+        };
+
+        let stop_piece = match self.get_piece_square(stop) {
+            Some(piece) => piece,
+            None => return false,
+        };
+
+        start_piece.is_white() == stop_piece.is_white()
+    }
+
 }
 
 // Struct for the file and rank of a square on the board
 pub struct Square {
-    file: u8,
-    rank: u8
+    file: i8,
+    rank: i8
 }
 
 impl Square {
 
     // Make new square from two values.
-    pub fn new_square_from_index(file: u8, rank: u8) -> Option<Self> {
+    pub fn new_square_from_index(file: i8, rank: i8) -> Option<Self> {
         if file < 8 && rank < 8 {
             Some(Self {file, rank})
         }
@@ -83,9 +98,9 @@ impl Square {
     }
 
     // Takes a two parts of chess notation, say a1 and converts it into a square of index's 0, 0
-    pub fn new_square_from_notation(file: char, rank: u8) -> Option<Self> {
+    pub fn new_square_from_notation(file: char, rank: i8) -> Option<Self> {
         // Change file from letter to index
-        let converted_file: u8 = match file {
+        let converted_file: i8 = match file {
             'a' => 0,
             'b' => 1,
             'c' => 2,
@@ -98,8 +113,8 @@ impl Square {
         };
 
         // Change the rank from number to index
-        let converted_rank: u8;
-        if rank >= 8 || rank <= 0 {
+        let converted_rank: i8;
+        if rank > 8 || rank <= 0 {
             return None;
         }
         else {
@@ -116,17 +131,17 @@ impl Square {
             return None;
         }
 
-        let rank: u8 = notation_string.chars().nth(1).unwrap().to_digit(10).unwrap() as u8;
+        let rank: i8 = notation_string.chars().nth(1).unwrap().to_digit(10).unwrap() as i8;
         let file: char = notation_string.as_bytes()[0] as char;
 
         Self::new_square_from_notation(file, rank)
     }
 
     // Getter's
-    pub fn file(&self) -> u8 {
+    pub fn file(&self) -> i8 {
         self.file
     }
-    pub fn rank(&self) -> u8 {
+    pub fn rank(&self) -> i8 {
         self.rank
     }
 

@@ -1,3 +1,5 @@
+// Protip Alt+z to read the comments, they are quite long sometimes and text wrapping makes life easier
+
 use crate::board::{Board, Square};
 use crate::pieces::PieceType;
 
@@ -49,7 +51,6 @@ impl Move {
 
     // Move 2+1 in any direction. 1 step
     fn knight_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        true
         // I'll start with the knight since it has the most basic logic, can jump over pieces and has no special rules or flags.
 
         // Say knight on b1 wants to move to a3, it will check the different movement vectors of the knight, going from (2,1), (2,-1), (1,2), (1,-2), (-1,2), (-1,-2), (-2, 1), (-2, -1) where the first value is the vertical (rank) change and the second is the horizontal (file)
@@ -60,6 +61,25 @@ impl Move {
         // If both of these are true, meaning we won't capture our own piece, we wont go out of bounds the move is valid
 
         // NOTE: We can't let a move expose our king, but this would mean checking if ANY of the enemy pieces can see our king, since we haven't made the movement logic for the rest of the pieces, we wont add this check until later
+
+        // Declare the ways a knight can move
+        const KNIGHT_MOVES: [(i8, i8); 8] = [
+            (2,1),  (2,-1),  (1,2),   (1,-2), 
+            (-1,2), (-1,-2), (-2, 1), (-2, -1),
+        ];
+
+        let mut move_match = false;
+
+        let rank_change = stop.rank() - start.rank();
+        let file_change = stop.file() - start.file();
+
+        for (rank_move, file_move) in KNIGHT_MOVES {
+            if (rank_move == rank_change && file_move == file_change) {
+                move_match = true;
+            }
+        }
+
+        move_match && !board.is_same_color(start, stop)
     }
 
     // Move any direction. 1 step.
@@ -85,11 +105,5 @@ impl Move {
     // Also castling king
     fn move_obstruction(board: &Board, start: &Square, stop: &Square) -> bool {
         false
-    }
-
-    // Checks if destination square is of same color
-    fn destination_color(board: &Board, start: &Square, stop: &Square) -> bool {
-        false
-    }
-
+    } 
 }

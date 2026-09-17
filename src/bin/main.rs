@@ -6,6 +6,7 @@
 use zilian_chess::board::{Board, Square};
 use zilian_chess::pieces::ChessPiece;
 use zilian_chess::game::ChessGame;
+use std::io;
 
 
 fn main () {
@@ -13,10 +14,29 @@ fn main () {
     // Makes a starting position board now as part of a new "game"
     let mut game: ChessGame = ChessGame::new_game(Board::new_starting_board(), true);
 
-    // Displays the board
-    println!("------------------");
-    display_board(game.board());
-    println!("------------------");
+    let mut exit: bool = false;
+    while !exit {
+        println!("------------------");
+         display_board(game.board());
+        println!("------------------");
+
+        let mut input_start = String::new();
+        let mut input_stop =  String::new();
+
+        println!("Enter Starting Position");
+        io::stdin()
+            .read_line(&mut input_start)
+            .expect("Failed to read line");
+        println!("Enter Stopping Position");
+        io::stdin()
+            .read_line(&mut input_stop)
+            .expect("Failed to read line");
+
+        game.make_move(
+            &input_start.trim().to_lowercase(),
+            &input_stop.trim().to_lowercase()
+        );
+    }
 
     /*
     The move should happen as part of a game
@@ -25,12 +45,6 @@ fn main () {
     The move is then made and can be shown to the user
     )
     */
-    game.make_move("e2", "e3");
-
-    // Displays the board
-    println!("------------------");
-    display_board(game.board());
-    println!("------------------");
 }
 
 // Display function that goes through rank and file and attaches a grid
