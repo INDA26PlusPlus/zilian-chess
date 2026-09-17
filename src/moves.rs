@@ -760,4 +760,81 @@ mod tests {
             assert!(!Move::check_move(&board, &start, &stop));
         }
     }
+
+    mod king_test {
+        use super::*;
+
+        #[test]
+        fn king_valid_move() {
+            // Try a valid king move on empty board
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...K....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("d5").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn king_enemy_capture() {
+            // Try valid white on black king capture 
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "...Kp...",
+            "........",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d5").unwrap();
+            let stop= Square::square_from_notation_str("e5").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+
+        #[test]
+        fn king_invalid_move() {
+            // Try moving queen in invalid way
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...k....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn king_team_capture() {
+            // Try white on white king capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...K....",
+            "...P....",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("d3").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+    }
 }
