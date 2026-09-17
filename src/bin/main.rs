@@ -18,7 +18,7 @@ fn main () {
     while !exit {
         println!("------------------");
          display_board(game.board());
-        println!("------------------");
+        println!("---{}---", game.turn_text());
 
         let mut input_start = String::new();
         let mut input_stop =  String::new();
