@@ -8,6 +8,8 @@ use zilian_chess::pieces::ChessPiece;
 
 
 fn main () {
+
+    /*
     // Makes an empty board and places two pieces on it.
     let mut board = Board::new_empty_board();
 
@@ -18,12 +20,19 @@ fn main () {
     let square = Square::new_square_from_notation('a', 5).unwrap();
     let chess_piece = ChessPiece::piece_from_letter('P', false);
     board.set_piece_square(square, chess_piece);
+    */
 
+    // Makes a starting position board
+    let mut board = Board::new_starting_board();
+
+    // Displays the board
     println!("------------------");
     display_board(board);
     println!("------------------");
+    
 }
 
+// Display function that goes through rank and file and attaches a grid
 fn display_board (board: Board) {
     for rank in (0..8).rev() {
         print!("{} ", rank + 1);

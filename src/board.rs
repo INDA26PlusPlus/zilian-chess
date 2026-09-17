@@ -1,3 +1,5 @@
+use std::string;
+
 use crate::pieces::ChessPiece;
 
 
@@ -13,6 +15,35 @@ impl Board {
         Self {
             squares: [[None; 8]; 8],
         }
+    }
+
+    pub fn board_from_strings(string_array: [&str; 8]) -> Self {
+
+        let mut board = Self::new_empty_board();
+
+        // For each rank (1,2,3,...)
+        for rank in (0..8) {
+            // For each file (a,b,c,...)
+            for file in 0..8 {
+                let letter = string_array[rank].as_bytes()[file] as char;
+                board.squares[file][rank] = ChessPiece::piece_from_letter(letter, false);
+            }
+        }
+
+        return board;
+    }
+
+    pub fn new_starting_board() -> Self {
+        Board::board_from_strings([
+            "rnbqkbnr",
+            "pppppppp",
+            "........",
+            "........",
+            "........",
+            "........",
+            "PPPPPPPP",
+            "RNBKQBNR",
+        ])
     }
 
     // Sets a piece on a given square.
