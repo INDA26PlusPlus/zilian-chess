@@ -5,6 +5,8 @@ use crate::moves::Move;
 pub struct ChessGame {
     board_state: Board,
     is_white_turn: bool,
+    // last_move_passant: Option<Square>,
+    // 
     // Can probably happen through like a "any legal moves" typa-check
     /* 
     white_check: bool,
@@ -13,6 +15,7 @@ pub struct ChessGame {
     white_checkmate: bool,
     black_checkmate: bool 
     */
+
 }
 
 impl ChessGame {
@@ -21,7 +24,7 @@ impl ChessGame {
     pub fn new_game(board_state: Board, is_white_turn: bool) -> Self {
         Self {
             board_state,
-            is_white_turn
+            is_white_turn,
         }
     }
 
@@ -75,7 +78,7 @@ impl ChessGame {
         //
         if !Move::check_move(&self.board_state, &start_square, &stop_square) {
             return Err(format!("Illegal move for that piece {:#?} to move from {} to {}",self.board_state.get_piece_square(&start_square) ,start, stop));
-        }
+        }        
         
         // If no errors move is valid, do move and change turn
         // Mark piece as having moved

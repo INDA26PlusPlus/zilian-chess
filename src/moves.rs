@@ -1,4 +1,5 @@
 // Protip Alt+z to read the comments, they are quite long sometimes and text wrapping makes life easier
+// Future me here ^ ??? no code is way harder to read
 
 use std::io::pipe;
 
@@ -102,7 +103,7 @@ impl Move {
             }
         }
 
-        move_match && !board.is_same_color(start, stop)
+        return move_match && !board.is_same_color(start, stop);
     }
 
     // Move any direction. 1 step.
@@ -113,13 +114,46 @@ impl Move {
         false
     }
 
-    // If has_moved = true, then up 1 in any direction
-    // Only allow diagonal up when capture = allowed
-    // If piece on either side is enemy pawn with flag, also allow diagonal up
-    // If has_moved = false, also allow 2 up center
-        // Flag piece
+    // Since a Pawn doesn't "step" like a Rook, Bishop or Queen
+    // We can take part of the Knight logic and look for if the
+    // Change between the start and stop square is possible
     fn pawn_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
-        true
+        const PAWN_MOVES: [(i8, i8); 4] = [
+            (1,0),  (1,-1),
+            (1,1), (2,0)
+        ];
+
+        let mut move_match = false;
+
+        let rank_change = stop.rank() - start.rank();
+        let file_change = stop.file() - start.file();
+
+        // Sets direction depending on if white or black (black moves in -rank)
+        let direction: i8 = if board.get_piece_square(start).unwrap().is_white() {1} else {-1};
+
+        for (rank_move, file_move) in PAWN_MOVES {
+
+            // If the square isn't reachable by this move, skip
+            if rank_move * direction != rank_change || file_move != file_change {
+                continue;
+            }
+
+            // Given that the move is achievable
+            if rank_move == 1 && file_move == 0 && board.get_piece_square(stop).is_none() {
+                move_match = true;
+            }
+
+            // Checks if square empty and square before it as well if has_moved.
+            if rank_move == 2 && file_move == 0 && (board.get_piece_square(stop).is_none() && board.get_piece_file_rank(stop.file(), stop.rank() - 1).is_none()) && !board.get_piece_square(start).unwrap().has_moved() {
+                move_match = true;
+                // EN PASSANT FLAG FOR NEXT MOVE
+            }
+            
+            if rank_move == 1 && (file_move == 1 || file_move == -1) && !board.get_piece_square(stop).is_none() {
+                move_match = true;
+            }
+        }
+        return move_match && !board.is_same_color(start, stop);
     }
 
     // Takes a single direction and steps in that direction repeatedly until boundary or another piece is hit.
@@ -208,6 +242,197 @@ mod tests {
             assert!(!Move::check_move(&board, &start, &stop));
         }
     }
+
+    mod pawn_tests {
+        // MI BOMBACLART
+        use super::*;
+        use crate::pieces::{ChessPiece, PieceType::Pawn};
+
+        #[test]
+        fn pawn_valid_forward_one() {
+            // Try a valid pawn move on empty board
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "....P...",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e2").unwrap();
+            let stop= Square::square_from_notation_str("e3").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_forward_one_blocked() {
+            // Try moving pawn forward into an occupied square, not even a capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "....p...",
+            "....P...",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e2").unwrap();
+            let stop= Square::square_from_notation_str("e3").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_valid_forward_two() {
+            // Try a valid double step on the first move
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "....P...",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e2").unwrap();
+            let stop= Square::square_from_notation_str("e4").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_forward_two_has_moved() {
+            // Try double step after the pawn has already moved once
+            let mut board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "....P...",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e2").unwrap();
+
+            // Sets the pawn "has_moved" to true
+            board.set_piece_square(&start, ChessPiece::new(Pawn, true, true));
+
+            let stop= Square::square_from_notation_str("e4").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_forward_two_blocked() {
+            // Try double step when piece in between
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "....p...",
+            "....P...",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e2").unwrap();
+            let stop= Square::square_from_notation_str("e4").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_enemy_capture() {
+            // Try valid white on black pawn capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "....p...",
+            "...P....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e5").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_diagonal_into_empty_invalid() {
+            // Try moving pawn diagonally with nothing to capture (no en passant)
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...P....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e5").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_team_capture() {
+            // Try white on white pawn capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "....P...",
+            "...P....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e5").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_black_direction() {
+            // Try a black pawn double step, going down the board instead of up
+            let board = Board::board_from_strings([
+            "........",
+            "....p...",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e7").unwrap();
+            let stop= Square::square_from_notation_str("e5").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn pawn_black_enemy_capture() {
+            // Try a black pawn double step, going down the board instead of up
+            let board = Board::board_from_strings([
+            "........",
+            "....p...",
+            ".....P..",
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("e7").unwrap();
+            let stop= Square::square_from_notation_str("f6").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+    }
+
 
     mod knight_tests {
         use super::*;
