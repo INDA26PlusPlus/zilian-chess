@@ -107,3 +107,23 @@ impl Move {
         false
     } 
 }
+
+
+// Testing block for all tests
+// Testing is grouped by piece for easier readability
+// and so i can collapse these later
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod knight_tests {
+        use super::*;
+
+        #[test]
+        fn knight_valid_move() {
+            !todo!()
+        }
+
+
+    }
+}
