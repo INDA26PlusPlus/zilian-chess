@@ -74,7 +74,7 @@ impl Move {
         let file_change = stop.file() - start.file();
 
         for (rank_move, file_move) in KNIGHT_MOVES {
-            if (rank_move == rank_change && file_move == file_change) {
+            if rank_move == rank_change && file_move == file_change {
                 move_match = true;
             }
         }
@@ -116,14 +116,105 @@ impl Move {
 mod tests {
     use super::*;
 
+    mod general_tests {
+
+        use super::*;
+
+        #[test]
+        fn move_from_empty() {
+            // Try moving FROM a square thats empty
+            let board = Board::board_from_strings([
+            "rnbqkbnr",
+            "pppppppp",
+            "........",
+            "........",
+            "........",
+            "........",
+            "PPPPPPPP",
+            "RNBKQBNR",
+            ]);
+            let start = Square::square_from_notation_str("c3").unwrap();
+            let stop= Square::square_from_notation_str("c4").unwrap();
+            // Must be true or cargo test will fail
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+    }
+
     mod knight_tests {
         use super::*;
 
         #[test]
         fn knight_valid_move() {
-            !todo!()
+            // Try a valid knight move on empty board
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...N....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e6").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
         }
 
+        #[test]
+        fn knight_enemy_capture() {
+            // Try valid white on black knight capture 
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "....p...",
+            "........",
+            "...N....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e6").unwrap();
+            assert!(Move::check_move(&board, &start, &stop));
+        }
+
+
+        #[test]
+        fn knight_invalid_move() {
+            // Try moving knight in invalid way
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "...N....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("f4").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
+
+        #[test]
+        fn knight_self_capture() {
+            // Try white on white knight capture
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "....P...",
+            "........",
+            "...N....",
+            "........",
+            "........",
+            "........",
+            ]);
+            let start = Square::square_from_notation_str("d4").unwrap();
+            let stop= Square::square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&board, &start, &stop));
+        }
 
     }
 }
