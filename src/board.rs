@@ -2,6 +2,7 @@ use crate::pieces::ChessPiece;
 
 
 // A nested array (Mailbox approach) that can either be empty or contain a piece.
+#[derive(Debug, Copy, Clone)]
 pub struct Board {
     squares: [[Option<ChessPiece>; 8]; 8]
 }
