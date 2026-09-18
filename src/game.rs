@@ -49,6 +49,21 @@ impl ChessGame {
         }
     }
 
+    // Current player check
+    pub fn in_check(&self) -> bool {
+        Self::is_in_check(&self.board_state, self.is_white_turn)
+    }
+
+    // Current player checkmate
+    pub fn in_checkmate(&self) -> bool {
+        Self::is_checkmate(&self.board_state, self.is_white_turn)
+    }
+
+    // Current player stalemate
+    pub fn in_stalemate(&self) -> bool {
+        Self::is_stalemate(&self.board_state, self.is_white_turn)
+    }
+
     // Gets a start and stop square
     // "Checks" if it's valid and executes.
     // Prints relevant error depending on where move fails/ why is invalid
@@ -83,11 +98,9 @@ impl ChessGame {
         }
 
         // Test move and see if it causes current player to go under check
-        let mut test_board = self.board_state;
-        test_board.move_piece_square(&start_square, &stop_square);
-        if Self::is_in_check(&test_board, self.is_white_turn) {
-            return Err(format!("That Move would put you in check!"))
-        } 
+        if Self::hangs_king(&self.board_state, &start_square, &stop_square, self.is_white_turn) {
+            return Err(format!("That move would put you in check!"))
+        }
         
         // If no errors move is valid, do move and change turn
         // Mark piece as having moved
@@ -148,6 +161,54 @@ impl ChessGame {
         }
     }
 
+    // Checks if move from square to square would expose king
+    pub fn hangs_king(board: &Board, start: &Square, stop: &Square, is_white: bool) -> bool {
+        let mut test_board = board.clone();
+        test_board.move_piece_square(start, stop);
+        Self::is_in_check(&test_board, is_white)
+    }
+
+    // Checks if there are any legal moves
+    // If not then game over
+    pub fn has_legal_moves(board: &Board, is_white: bool) -> bool {
+        // Can lowkirkenuaneliey copy is_attacked
+        for file in 0..8 {
+            for rank in 0..8 {
+                // The square we want to see if it has LOS to attacked_square
+                let mut checking_square = Square::new_square_from_index(file, rank).unwrap();
+
+                match board.get_piece_file_rank(file, rank) {
+                    Some(piece) 
+                    => if piece.is_white() == !is_white {
+                        continue; // Skip if not correct color
+                    },
+                    None => continue, // Skip if empty
+                }
+                for dest_file in 0..8 {
+                    for dest_rank in 0..8 {
+                        let mut destination_square = Square::new_square_from_index(dest_file, dest_rank).unwrap();
+                        if Move::check_move(board, &checking_square, &destination_square) {
+                            if !Self::hangs_king(board, &checking_square, &destination_square, is_white) {
+                                return true;
+                            }
+                        }
+                    }
+                } // Holy nesting!!! I would make less awful if i had the time
+            }
+        }
+        return  false;
+    }
+
+    // In check with no legal moves
+    pub fn is_checkmate(board: &Board, is_white: bool) -> bool {
+        Self::is_in_check(board, is_white) && !Self::has_legal_moves(board, is_white)
+    }
+
+    // Not in check but no legal moves
+    pub fn is_stalemate(board: &Board, is_white: bool) -> bool {
+        !Self::is_in_check(board, is_white) && !Self::has_legal_moves(board, is_white)
+    }
+
 }
 
 #[cfg(test)]
@@ -170,5 +231,41 @@ mod tests {
 
         let mut game = ChessGame::new_game(board, true);
         assert!(!game.make_move("e2", "d3").is_ok());
+    }
+
+    #[test]
+    fn checkmate_detection() {
+        // Try to see if checkmate is detected
+        let board = Board::board_from_strings([
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        ".....PPP",
+        "r......K",
+        ]);
+
+        assert!(ChessGame::is_checkmate(&board, true));
+        assert!(!ChessGame::is_stalemate(&board, true));
+    }
+
+    #[test]
+    fn stalemate_detection() {
+        // Try to see if stalemate is detected
+        let board = Board::board_from_strings([
+        "k.......",
+        "..Q.....",
+        "........",
+        "........",
+        "..K.....",
+        "........",
+        "........",
+        "........",
+        ]);
+
+        assert!(ChessGame::is_stalemate(&board, false));
+        assert!(!ChessGame::is_checkmate(&board, false));
     }
 }
