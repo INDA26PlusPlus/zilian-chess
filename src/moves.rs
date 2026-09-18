@@ -1,22 +1,37 @@
-// Protip Alt+z to read the comments, they are quite long sometimes and text wrapping makes life easier
-// Future me here ^ ??? no code is way harder to read
+/*
+moves.rs is responsible for handling all the movement checks,
+This is basically the brain of the library, when it's determined if
+a move is valid or not.
 
-use std::io::pipe;
+Only issue is that it's built using like only bools which was nice and
+easy when making the first pieces but I now have to implement special moves
+and castling and en passant require more info than just a yes/no
 
+If i get to finish thi sa komp I'll do that otherwise... D:
+*/
 use crate::board::{Board, Square};
-use crate::pieces::PieceType::{self, Bishop};
+use crate::pieces::PieceType;
 
-// What is a move?
-// One place to another
-// What properties can a move have?
-//      Legal/Illegal, Normal/ Special (en passant ect)
-//      Direction? Like white and black go opposite (7-rank to swap)
+// Using these flags we'll hopefully be able to make some special moves happen.
+// I'm high-key WAY to tired to do this on the bus right now
+
+pub enum SpecialMove {
+    Normal,
+    Castling {rook_start: Square, rook_stop: Square}
+    // En_Passant
+    // Promotion
+}
 pub struct Move {
-    start: Square,
-    stop: Square,
+    special: SpecialMove,
 }
 
 impl Move {
+
+    pub fn new_move () -> Self {
+        Self {
+            special: SpecialMove::Normal
+        }
+    }
 
     // Runs different movement checks depending on starting piece.
     pub fn check_move(board: &Board, start: &Square, stop: &Square) -> bool {
@@ -88,7 +103,7 @@ impl Move {
     // Move 2+1 in any direction. 1 step
     fn knight_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
         const KNIGHT_MOVES: [(i8, i8); 8] = [
-            (2,1),  (2,-1),  (1,2),   (1,-2), 
+            (2,1),  (2,-1),  (1,2),   (1,-2),
             (-1,2), (-1,-2), (-2, 1), (-2, -1),
         ];
 
@@ -129,8 +144,74 @@ impl Move {
         }
 
         // Checks that move is valid and if capture, it's not same piece.
-        return move_match && !board.is_same_color(start, stop);
+        if move_match {
+            return !board.is_same_color(start, stop);
+        }
 
+        ////// BEGINNING OF A VERY NOT GOOD CASTLING SCRIPT
+        if rank_change != 0 || (file_change != 2 && file_change != -2) {
+            return false;
+        }
+        // Past here we're checking if its a valid castling move
+
+        // Find the king
+        let king = match board.get_piece_square(start) {
+            Some(piece) => piece,
+            None => return  false,
+        };
+
+        // Has king moved
+        if king.has_moved() {
+            return false;
+        }
+
+        // Is king in check
+        if Self::square_attacked(board, start, king.is_white()) {
+            return false;
+        }
+
+        // Iterate and check that all the squares to the rook are empty
+        // On square 1 and 2 of iteration check if that spot is in check
+        // On reaching (or not reaching rook) se if the rook exists or has_moved
+        let step: i8;
+        if file_change > 0 {
+            step = 1
+        }
+        else {
+            step = -1
+        }
+
+        let mut file = start.file() + step;
+
+
+        // If no check and clear path to rook, nobody has_moved
+
+
+    return false;
+
+    }
+
+    // Scans the board for an enemy piece that can reach `square`, used to
+    // check the king isn't in, through, or landing in check while castling.
+    fn square_attacked(board: &Board, square: &Square, is_white: bool) -> bool {
+        for file in 0..8 {
+            for rank in 0..8 {
+                let attacker_square = match Square::new_square_from_index(file, rank) {
+                    Some(square) => square,
+                    None => continue,
+                };
+
+                match board.get_piece_square(&attacker_square) {
+                    Some(piece) if piece.is_white() != is_white => {
+                        if Self::check_move(board, &attacker_square, square) {
+                            return true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        false
     }
 
     // Since a Pawn doesn't "step" like a Rook, Bishop or Queen

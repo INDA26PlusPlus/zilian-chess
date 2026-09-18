@@ -1,5 +1,5 @@
 use crate::board::{Board, Square};
-use crate::pieces::{self, ChessPiece, PieceType};
+use crate::pieces::{PieceType};
 use crate::moves::Move;
 
 // Improved error handling for the API
@@ -16,6 +16,7 @@ pub enum MoveError {
 pub struct ChessGame {
     board_state: Board,
     is_white_turn: bool,
+    movement: Move,
 }
 
 impl ChessGame {
@@ -25,6 +26,7 @@ impl ChessGame {
         Self {
             board_state,
             is_white_turn,
+            movement: Move::new_move(),
         }
     }
 
@@ -32,6 +34,7 @@ impl ChessGame {
         Self {
             board_state: Board::new_starting_board(),
             is_white_turn: true,
+            movement: Move::new_move(),
         }
     }
 
@@ -117,8 +120,8 @@ impl ChessGame {
         // If no errors move is valid, do move and change turn
         // Mark piece as having moved
         piece.has_moved_true();
-        self.board_state.set_piece_square(&start_square, Some(piece));
-        self.board_state.move_piece_square(&start_square, &stop_square);
+        self.board_state.set_piece_square(&start_square, Some(piece));  // Set start_square to same piece but moved
+        self.board_state.move_piece_square(&start_square, &stop_square);            // Actually moves the piece
 
         self.is_white_turn = !self.is_white_turn;
         Ok(())
