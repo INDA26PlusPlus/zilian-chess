@@ -3,19 +3,18 @@
 // so i can see what I need to do to improve
 // it from a user point-of-view.
 
-use zilian_chess::board::{Board, Square};
-use zilian_chess::pieces::ChessPiece;
-use zilian_chess::game::ChessGame;
+use chess_box::board::{Board, Square};
+use chess_box::pieces::ChessPiece;
+use chess_box::game::ChessGame;
 use std::io;
 
 
 fn main () {
 
     // Makes a starting position board now as part of a new "game"
-    let mut game: ChessGame = ChessGame::new_game(Board::new_starting_board(), true);
-
-    let mut exit: bool = false;
-    while !exit {
+    let mut game: ChessGame = ChessGame::new_standard_game();
+    
+    loop {
         println!("------------------");
          display_board(game.board());
         println!("---{}---", game.turn_text());
@@ -39,7 +38,7 @@ fn main () {
             &input_stop.trim().to_lowercase()
             ) {
                 Ok(()) => {},
-                Err(message) => println!("{}", message)
+                Err(message) => println!("{:?}", message)
             }
         }
 

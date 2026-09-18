@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "zilian-chess"
+name = "chess-box"
 version = "0.1.0"

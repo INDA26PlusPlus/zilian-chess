@@ -12,8 +12,8 @@ use crate::pieces::PieceType::{self, Bishop};
 //      Legal/Illegal, Normal/ Special (en passant ect)
 //      Direction? Like white and black go opposite (7-rank to swap)
 pub struct Move {
-    pub start: Square,
-    pub stop: Square,
+    start: Square,
+    stop: Square,
 }
 
 impl Move {
@@ -163,7 +163,7 @@ impl Move {
             }
 
             // Checks if square empty and square before it as well if has_moved.
-            if rank_move == 2 && file_move == 0 && (board.get_piece_square(stop).is_none() && board.get_piece_file_rank(stop.file(), stop.rank() - 1).is_none()) && !board.get_piece_square(start).unwrap().has_moved() {
+            if rank_move == 2 && file_move == 0 && (board.get_piece_square(stop).is_none() && board.get_piece_file_rank(stop.file(), stop.rank() - direction).is_none()) && !board.get_piece_square(start).unwrap().has_moved() {
                 move_match = true;
                 // EN PASSANT FLAG FOR NEXT MOVE
             }

@@ -85,6 +85,7 @@ impl Board {
 }
 
 // Struct for the file and rank of a square on the board
+#[derive(PartialEq)]
 pub struct Square {
     file: i8,
     rank: i8
@@ -103,7 +104,7 @@ impl Square {
     }
 
     // Takes a two parts of chess notation, say a1 and converts it into a square of index's 0, 0
-    pub fn new_square_from_notation(file: char, rank: i8) -> Option<Self> {
+    fn new_square_from_notation(file: char, rank: i8) -> Option<Self> {
         // Change file from letter to index
         let converted_file: i8 = match file {
             'a' => 0,

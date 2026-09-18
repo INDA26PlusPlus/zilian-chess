@@ -2,20 +2,20 @@ use crate::board::{Board, Square};
 use crate::pieces::{self, ChessPiece, PieceType};
 use crate::moves::Move;
 
+// Improved error handling for the API
+#[derive(Debug)]
+pub enum MoveError {
+    InvalidNotation(String), // Notation wrong, like x9
+    EmptySquare(String),     // Tried to move a empty square
+    NotYourPiece(String),    // Tried to move enemy piece
+    CantSelfHarm,            // Tried to attack own piece
+    IllegalMove(String),     // Tried to move in incorrect pattern
+    HangsKing,               // Tried to move in way that causes check
+}
+
 pub struct ChessGame {
     board_state: Board,
     is_white_turn: bool,
-    // last_move_passant: Option<Square>,
-    // 
-    // Can probably happen through like a "any legal moves" typa-check
-    /* 
-    white_check: bool,
-    black_check: bool,
-    stalemate: bool,
-    white_checkmate: bool,
-    black_checkmate: bool 
-    */
-
 }
 
 impl ChessGame {
@@ -25,6 +25,13 @@ impl ChessGame {
         Self {
             board_state,
             is_white_turn,
+        }
+    }
+
+    pub fn new_standard_game() -> Self {
+        Self {
+            board_state: Board::new_starting_board(),
+            is_white_turn: true,
         }
     }
 
@@ -67,41 +74,46 @@ impl ChessGame {
     // Gets a start and stop square
     // "Checks" if it's valid and executes.
     // Prints relevant error depending on where move fails/ why is invalid
-    pub fn make_move(&mut self, start: &str, stop: &str) -> Result<(), String> {
-        
+    pub fn make_move(&mut self, start: &str, stop: &str) -> Result<(), MoveError> {
+
         // Can't make square from start string
         let start_square = match Square::square_from_notation_str(start) {
             Some(square) => square,
-            None => return Err(format!("Invalid Starting Square [{}]", start)),
+            None => return Err(MoveError::InvalidNotation(start.to_string())),
         };
         // Can't make square from stop string
         let stop_square = match Square::square_from_notation_str(stop) {
             Some(square) => square,
-            None => return Err(format!("Invalid Stopping Square [{}]", stop)),
+            None => return Err(MoveError::InvalidNotation(stop.to_string())),
         };
 
         // No piece to move
         // Mark th piece as mutable for later
         let mut piece = match self.board_state.get_piece_square(&start_square) {
             Some(piece) => piece,
-            None => return Err(format!("Starting Square Empty [{}]", start)),
+            None => return Err(MoveError::EmptySquare(start.to_string())),
         };
 
         // Checks that the piece being moved is the same as the color of who's turn it is
         if piece.is_white() != self.is_white_turn {
-            return Err(format!("Not your piece [{}], it's {}", start, self.turn_text()));
+            return Err(MoveError::NotYourPiece(start.to_string()));
+        }
+
+        // Destination occupied by one of your own pieces
+        if self.board_state.is_same_color(&start_square, &stop_square) {
+            return Err(MoveError::CantSelfHarm);
         }
 
         // If move passes the movement logic check
         if !Move::check_move(&self.board_state, &start_square, &stop_square) {
-            return Err(format!("Illegal move for that piece {:#?} to move from {} to {}",self.board_state.get_piece_square(&start_square) ,start, stop));
+            return Err(MoveError::IllegalMove(format!("{} to {}", start, stop)));
         }
 
         // Test move and see if it causes current player to go under check
         if Self::hangs_king(&self.board_state, &start_square, &stop_square, self.is_white_turn) {
-            return Err(format!("That move would put you in check!"))
+            return Err(MoveError::HangsKing);
         }
-        
+
         // If no errors move is valid, do move and change turn
         // Mark piece as having moved
         piece.has_moved_true();
@@ -114,7 +126,7 @@ impl ChessGame {
 
 
     // Find square with king of given color
-    pub fn find_king(board: &Board, is_white: bool) -> Option<Square> {
+    fn find_king(board: &Board, is_white: bool) -> Option<Square> {
         for file in 0..8 {
             for rank in 0..8 {
                 match board.get_piece_file_rank(file, rank) {
@@ -131,7 +143,7 @@ impl ChessGame {
 
     // Given a square and a color
     // Find out if the enemy is attacking that square (has LOS)
-    pub fn is_attacked(board: &Board, attacked_square: &Square, is_white: bool) -> bool {
+    fn is_attacked(board: &Board, attacked_square: &Square, is_white: bool) -> bool {
         for file in 0..8 {
             for rank in 0..8 {
                 // The square we want to see if it has LOS to attacked_square
@@ -153,7 +165,7 @@ impl ChessGame {
     }
 
     // Combine two previous to find out if in check
-    pub fn is_in_check(board: &Board, is_white: bool) -> bool {
+    fn is_in_check(board: &Board, is_white: bool) -> bool {
         match Self::find_king(board, is_white) {
             Some(king_square) =>
             return Self::is_attacked(board, &king_square, is_white),
@@ -162,7 +174,7 @@ impl ChessGame {
     }
 
     // Checks if move from square to square would expose king
-    pub fn hangs_king(board: &Board, start: &Square, stop: &Square, is_white: bool) -> bool {
+    fn hangs_king(board: &Board, start: &Square, stop: &Square, is_white: bool) -> bool {
         let mut test_board = board.clone();
         test_board.move_piece_square(start, stop);
         Self::is_in_check(&test_board, is_white)
@@ -170,7 +182,7 @@ impl ChessGame {
 
     // Checks if there are any legal moves
     // If not then game over
-    pub fn has_legal_moves(board: &Board, is_white: bool) -> bool {
+    fn has_legal_moves(board: &Board, is_white: bool) -> bool {
         // Can lowkirkenuaneliey copy is_attacked
         for file in 0..8 {
             for rank in 0..8 {
@@ -200,12 +212,12 @@ impl ChessGame {
     }
 
     // In check with no legal moves
-    pub fn is_checkmate(board: &Board, is_white: bool) -> bool {
+    fn is_checkmate(board: &Board, is_white: bool) -> bool {
         Self::is_in_check(board, is_white) && !Self::has_legal_moves(board, is_white)
     }
 
     // Not in check but no legal moves
-    pub fn is_stalemate(board: &Board, is_white: bool) -> bool {
+    fn is_stalemate(board: &Board, is_white: bool) -> bool {
         !Self::is_in_check(board, is_white) && !Self::has_legal_moves(board, is_white)
     }
 
