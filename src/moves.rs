@@ -10,24 +10,10 @@ and castling and en passant require more info than just a yes/no
 use crate::board::{Board, Square};
 use crate::pieces::PieceType;
 
-// Using these flags we'll hopefully be able to make some special moves happen.
-// I'm high-key WAY to tired to do this on the bus right now
-
-pub enum SpecialMove {
-    Normal,
-    Castling {rook_start: Square, rook_stop: Square},
-
-
-    Promotion {promotion_square: Square},
-
+pub struct Move {
     // If a double pawn move has been made previously
     // Square is the skipped pawn square (behind the pawn that moved)
-    EnPassant {en_passant_square: Square}
-}
-pub struct Move {
-    // Flags depending on if the move was "special"
-    // Aka, castling, en_passant, promotion and needs extra handling
-    flag: SpecialMove,
+    en_passant_square: Option<Square>,
     // Counts moves since a pawn or capture move (50 move rule)
     since_pawn_capture: u8
 }
@@ -36,7 +22,7 @@ impl Move {
 
     pub fn new_move () -> Self {
         Self {
-            flag: SpecialMove::Normal,
+            en_passant_square: None,
             since_pawn_capture: 0
         }
     }
@@ -56,7 +42,7 @@ impl Move {
         if board.would_be_capture(start, stop) {
             self.fifty_reset();
         }
-        // Is it pawn moving -> Reset
+        // Is it pawn moving -> Reset (also takes care of en passant)
         else if board.get_piece_square(start).unwrap().piece_type() == PieceType::Pawn {
             self.fifty_reset();
         }
@@ -65,6 +51,10 @@ impl Move {
             self.fifty_increment();
         }
     }
+
+    pub fn get_fifty_increment(&self) -> u8 {
+        return self.since_pawn_capture;
+    } 
 
     // Runs different movement checks depending on starting piece.
     pub fn check_move(&self, board: &Board, start: &Square, stop: &Square) -> bool {
@@ -85,18 +75,52 @@ impl Move {
         }
     }
 
-    // Sets flag
-    pub fn set_flag(&mut self, flag: SpecialMove) {
-        self.flag = flag;
+    pub fn set_en_passant_square(&mut self, square: Option<Square>) {
+        self.en_passant_square = square;
     }
 
-    // Gets flag 
-    pub fn get_flag(&self) -> &SpecialMove {
-        &self.flag
+    pub fn get_en_passant_square(&self) -> &Option<Square> {
+        return &self.en_passant_square;
     }
 
-    pub fn en_passant_flag(passant_square: Square) -> SpecialMove {
-        SpecialMove::EnPassant { en_passant_square: passant_square }
+    // Checks if the move would be a valid castling move
+    pub fn is_valid_castle(&self, board: &Board, start: &Square, stop: &Square) -> bool {
+        return false;
+    }
+
+    // Checks if the move is a double pawn push, enabling en passant next move
+    pub fn is_valid_en_passant_setup(&self, board: &Board, start: &Square, stop: &Square) -> bool {
+        let piece = board.get_piece_square(start).unwrap();
+
+        if piece.piece_type() != PieceType::Pawn {
+            return false;
+        }
+
+        let direction: i8 = if piece.is_white() {1} else {-1};
+        let rank_change = stop.rank() - start.rank();
+        let file_change = stop.file() - start.file();
+
+        return rank_change == 2 * direction && file_change == 0;
+    }
+
+    // Checks if the move captures a pawn via en passant
+    pub fn is_valid_en_passant_capture(&self, board: &Board, start: &Square, stop: &Square) -> bool {
+        let piece = board.get_piece_square(start).unwrap();
+
+        if piece.piece_type() != PieceType::Pawn {
+            return false;
+        }
+
+        let direction: i8 = if piece.is_white() {1} else {-1};
+        let rank_change = stop.rank() - start.rank();
+        let file_change = stop.file() - start.file();
+
+        return rank_change == direction && (file_change == 1 || file_change == -1) && self.en_passant_square.as_ref() == Some(stop);
+    }
+
+    // Checks if move would be a promotion
+    pub fn is_valid_promotion(&self, board: &Board, start: &Square, stop: &Square) -> bool {
+        return false;
     }
 
     // Move diagonal in all directions, steps until collision.
@@ -239,29 +263,6 @@ impl Move {
 
     }
 
-    // Scans the board for an enemy piece that can reach `square`, used to
-    // check the king isn't in, through, or landing in check while castling.
-    fn square_attacked(&self, board: &Board, square: &Square, is_white: bool) -> bool {
-        for file in 0..8 {
-            for rank in 0..8 {
-                let attacker_square = match Square::new_square_from_index(file, rank) {
-                    Some(square) => square,
-                    None => continue,
-                };
-
-                match board.get_piece_square(&attacker_square) {
-                    Some(piece) if piece.is_white() != is_white => {
-                        if self.check_move(board, &attacker_square, square) {
-                            return true;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        false
-    }
-
     // Since a Pawn doesn't "step" like a Rook, Bishop or Queen
     // We can take part of the Knight logic and look for if the
     // Change between the start and stop square is possible
@@ -292,16 +293,48 @@ impl Move {
             }
 
             // Checks if square empty and square before it as well if has_moved.
-            if rank_move == 2 && file_move == 0 && (board.get_piece_square(stop).is_none() && board.get_piece_file_rank(stop.file(), stop.rank() - direction).is_none()) && !board.get_piece_square(start).unwrap().has_moved() {
+            if self.is_valid_en_passant_setup(board, start, stop)
+            && (board.get_piece_square(stop).is_none()
+            && board.get_piece_file_rank(stop.file(), stop.rank() - direction).is_none())
+            && !board.get_piece_square(start).unwrap().has_moved() {
                 move_match = true;
-                // EN PASSANT FLAG FOR NEXT MOVE
             }
-            
+
+            // Capture (given that it's a normal capture)
             if rank_move == 1 && (file_move == 1 || file_move == -1) && !board.get_piece_square(stop).is_none() {
                 move_match = true;
             }
+
+            // Capture (en passant)
+            if self.is_valid_en_passant_capture(board, start, stop) {
+                move_match = true;
+            }
+
         }
         return move_match && !board.is_same_color(start, stop);
+    }
+
+    // Scans the board for an enemy piece that can reach `square`, used to
+    // check the king isn't in, through, or landing in check while castling.
+    fn square_attacked(&self, board: &Board, square: &Square, is_white: bool) -> bool {
+        for file in 0..8 {
+            for rank in 0..8 {
+                let attacker_square = match Square::new_square_from_index(file, rank) {
+                    Some(square) => square,
+                    None => continue,
+                };
+
+                match board.get_piece_square(&attacker_square) {
+                    Some(piece) if piece.is_white() != is_white => {
+                        if self.check_move(board, &attacker_square, square) {
+                            return true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        false
     }
 
     // Takes a single direction and steps in that direction repeatedly until boundary or another piece is hit.
@@ -537,7 +570,7 @@ mod tests {
 
         #[test]
         fn pawn_black_direction() {
-            // Try a black pawn double step, going down the board instead of up
+            // Try a black pawn single, going down the board instead of up
             let board = Board::board_from_strings([
             "........",
             "....p...",
@@ -549,7 +582,25 @@ mod tests {
             "........",
             ]);
             let start = Square::new_square_from_notation_str("e7").unwrap();
-            let stop= Square::new_square_from_notation_str("e5").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
+        }
+
+                #[test]
+        fn pawn_white_single() {
+            // Try a black pawn single, going down the board instead of up
+            let board = Board::board_from_strings([
+            "........",
+            "........",
+            "........",
+            "........",
+            "........",
+            "P.......",
+            "........",
+            "........",
+            ]);
+            let start = Square::new_square_from_notation_str("a3").unwrap();
+            let stop= Square::new_square_from_notation_str("a4").unwrap();
             assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 

@@ -77,6 +77,11 @@ impl ChessGame {
         self.is_stalemate(&self.board_state, self.is_white_turn)
     }
 
+    // Tie by fifty-move-rule
+    pub fn in_tie(&self) -> bool {
+        return self.movement_logic.get_fifty_increment() >= 100;
+    }
+
     pub fn make_move_notation(&mut self, start: &str, stop: &str) -> Result<(), MoveError> {
         self.make_move(
             Square::new_square_from_notation_str(&start),
@@ -117,7 +122,7 @@ impl ChessGame {
         }
 
         // If move passes the movement logic check
-        if self.movement_logic.check_move(&self.board_state, &start_square, &stop_square) {
+        if !self.movement_logic.check_move(&self.board_state, &start_square, &stop_square) {
             return Err(MoveError::IllegalMove);
         }
 
@@ -126,19 +131,48 @@ impl ChessGame {
             return Err(MoveError::HangsKing);
         }
 
-        // If no errors move is valid
-        // Since move is valid we can check if we need to flag the Move::SpecialMove
-        //self.movement_logic.flag_move(&self.board_state, &start_square, &stop_square);
+        // FROM HERE ON
+        // Since the move is valid by the previous checks we can check how it would effect the fifty move rule
+        self.movement_logic.fifty_handler(&self.board_state, &start_square, &stop_square);
 
-        // Mark piece as having moved
+        // If the move a king-castling move
+        if self.movement_logic.is_valid_castle(&self.board_state, &start_square, &stop_square) {
+            todo!()
+            // Moves the castle to the right positions
+        }
+
+        // If the move is a double pawn push, setting up en passant for next move
+        else if self.movement_logic.is_valid_en_passant_setup(&self.board_state, &start_square, &stop_square) {
+            // Set the en_passant square to the square behind where the move stops at
+            let direction: i8 = if piece.is_white() { 1 } else { -1 };
+            let passant_square = Square::new_square_from_index(start_square.file(), start_square.rank() + direction).unwrap();
+            self.movement_logic.set_en_passant_square(Some(passant_square));
+        }
+
+        // If the move is a en_passant capture move
+        else if self.movement_logic.is_valid_en_passant_capture(&self.board_state, &start_square, &stop_square) {
+            // Removes the "captured pawn" since its not on stop_square
+            let captured_square = Square::new_square_from_index(stop_square.file(), start_square.rank()).unwrap();
+            self.board_state.set_piece_square(&captured_square, None);
+            self.movement_logic.set_en_passant_square(None);
+        }
+
+        // If the move is a pawn promotion
+        else if self.movement_logic.is_valid_promotion(&self.board_state, &start_square, &stop_square) {
+            todo!()
+            // Moves the piece and changes the type to what it needs to be
+            // (will need to add API support here so that someone who makes the move can choose what piece it's promoted to)
+        }
+
+        // Since piece is allowed to move to stop square, and we took care of special cases, we make move as normal
         piece.has_moved_true();
         self.board_state.set_piece_square(&start_square, Some(piece));  // Set start_square to same piece but moved
         self.board_state.move_piece_square(&start_square, &stop_square);            // Actually moves the piece
 
         self.is_white_turn = !self.is_white_turn;
+
         Ok(())
     }
-
 
     // Find square with king of given color
     fn find_king(board: &Board, is_white: bool) -> Option<Square> {
@@ -227,12 +261,12 @@ impl ChessGame {
     }
 
     // In check with no legal moves
-    fn is_checkmate(&self, board: &Board, is_white: bool) -> bool {
+    pub fn is_checkmate(&self, board: &Board, is_white: bool) -> bool {
         self.is_in_check(board, is_white) && !self.has_legal_moves(board, is_white)
     }
 
     // Not in check but no legal moves
-    fn is_stalemate(&self, board: &Board, is_white: bool) -> bool {
+    pub fn is_stalemate(&self, board: &Board, is_white: bool) -> bool {
         !self.is_in_check(board, is_white) && !self.has_legal_moves(board, is_white)
     }
 
@@ -294,5 +328,67 @@ mod tests {
         let test_game = ChessGame::new_game(board, true);
         assert!(test_game.is_stalemate(&board, false));
         assert!(!test_game.is_checkmate(&board, false));
+    }
+
+    #[test]
+    fn en_passant() {
+        // Try to see if en_passant capture works
+        let board = Board::board_from_strings([
+        "........",
+        "........",
+        "........",
+        "........",
+        "...p....",
+        "........",
+        "....P...",
+        "........",
+        ]);
+        let mut game = ChessGame::new_game(board, true);
+        assert!(game.make_move_notation("e2", "e4").is_ok());
+        assert!(game.make_move_notation("d4", "e3").is_ok());
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("e3").unwrap()).is_some());
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("e4").unwrap()).is_none());
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("d4").unwrap()).is_none());
+    }
+
+    #[test]
+    fn fifty_move_rule_tie() {
+        // Moves knight back and forth 50 times to see if counts as tie
+        let board = Board::board_from_strings([
+        ".n......",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        ".N......",
+        ]);
+        let mut game = ChessGame::new_game(board, true);
+        assert!(!game.in_tie());
+
+        // Makes 49 moves aka 98 turns
+        let mut forward_turn = true;
+        for _ in 0..49 {
+            let (white_from, white_to) = if forward_turn { ("b1", "c3") } else { ("c3", "b1") };
+            let (black_from, black_to) = if forward_turn { ("b8", "c6") } else { ("c6", "b8") };
+
+            assert!(game.make_move_notation(white_from, white_to).is_ok());
+            assert!(game.make_move_notation(black_from, black_to).is_ok());
+
+            forward_turn = !forward_turn;
+        }
+        // Checks that game is not in tie after 49 moves
+        assert!(!game.in_tie());
+
+        // Makes 50th move
+        let (white_from, white_to) = if forward_turn { ("b1", "c3") } else { ("c3", "b1") };
+        let (black_from, black_to) = if forward_turn { ("b8", "c6") } else { ("c6", "b8") };
+
+        assert!(game.make_move_notation(white_from, white_to).is_ok());
+        assert!(game.make_move_notation(black_from, black_to).is_ok());
+
+        // Checks that game IS tie after 50 moves
+        assert!(game.in_tie());
     }
 }
