@@ -1,4 +1,6 @@
-# NOTE: MIGHT CHANGE SOME THINGS/ ADD BETTER LIBRARY SUPPORT
+# NOTE
+Might add some extra methods. This wouldn't effect any existing methods so API is still fully functioning at its current state
+
 
 # ChessBox
 Chess library made in **RUST**!
