@@ -24,9 +24,11 @@ fn main () {
     // We can now check several things about the piece on the example square
     match example_piece {
         Some(piece) => {
+            // Checking color of piece
             if piece.is_white() {
                 println!("The piece on {}, {} is WHITE!", example_square.file(), example_square.rank())
             }
+            // Checking type of piece
             if piece.piece_type() == PieceType::King {
                 println!("The piece on {}, {} is a KING!", example_square.file(), example_square.rank())
             }

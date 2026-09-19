@@ -1,4 +1,4 @@
-use crate::pieces::{self, ChessPiece};
+use crate::pieces::{ChessPiece};
 
 
 // A nested array (Mailbox approach) that can either be empty or contain a piece.

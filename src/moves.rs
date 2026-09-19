@@ -22,7 +22,7 @@ pub enum SpecialMove {
 
     // If a double pawn move has been made previously
     // Square is the skipped pawn square (behind the pawn that moved)
-    En_Passant {en_passant_square: Square}
+    EnPassant {en_passant_square: Square}
 }
 pub struct Move {
     // Flags depending on if the move was "special"
@@ -96,7 +96,7 @@ impl Move {
     }
 
     pub fn en_passant_flag(passant_square: Square) -> SpecialMove {
-        SpecialMove::En_Passant { en_passant_square: passant_square }
+        SpecialMove::EnPassant { en_passant_square: passant_square }
     }
 
     // Move diagonal in all directions, steps until collision.
@@ -229,7 +229,7 @@ impl Move {
             step = -1
         }
 
-        let mut file = start.file() + step;
+        let mut _file = start.file() + step;
 
 
         // If no check and clear path to rook, nobody has_moved
@@ -320,7 +320,7 @@ impl Move {
             file = file + file_change;
 
             // Go to new direction outside boundary
-            if (0 > rank || rank >= 8 || 0 > file || file >= 8) {
+            if 0 > rank || rank >= 8 || 0 > file || file >= 8 {
                 break;
             }
 
@@ -346,17 +346,8 @@ impl Move {
                 }
             }
         }
-
         return false;
     }
-
-    // If nothing blocks the final destination then valid
-    // For rook, bishop, queen
-    // Also first move pawn
-    // Also castling king
-    fn move_obstruction(board: &Board, start: &Square, stop: &Square) -> bool {
-        false
-    } 
 }
 
 
