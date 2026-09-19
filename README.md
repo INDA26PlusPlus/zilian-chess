@@ -146,9 +146,9 @@ pub fn get_piece_file_rank(&self, file: i8, rank: i8) -> Option<ChessPiece>
 
 pub fn would_be_capture(&self, start: &Square, stop: &Square) -> bool
 
-pub fn piece_from_letter(letter: char, has_moved: bool) -> Option<Self>
+pub fn piece_from_letter(letter: char, has_moved: bool) -> Option<ChessPiece>
 
-pub fn letter_from_piece(piece: Option<Self>) -> char
+pub fn letter_from_piece(piece: Option<ChessPiece>) -> char
 ```
 
 I plan on making some minor changes with the underlying movement logic, this shouldn't effect how one would use the API since everything handled is handled through the `ChessGame`.

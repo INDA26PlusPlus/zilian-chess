@@ -29,7 +29,7 @@ impl ChessPiece {
     }
 
     // Takes a letter and gives the appropriate piece type (could l'key split in two in the future)
-    pub fn piece_from_letter(letter: char, has_moved: bool) -> Option<Self> {
+    pub fn piece_from_letter(letter: char, has_moved: bool) -> Option<ChessPiece> {
 
         let is_white: bool = letter.is_ascii_uppercase();
         let piece_type: PieceType = match letter.to_ascii_lowercase() {
@@ -45,7 +45,7 @@ impl ChessPiece {
     }
 
     // Takes a ChessPiece struct option and gives an appropriate ASCII symbol.
-    pub fn letter_from_piece(piece: Option<Self>) -> char {
+    pub fn letter_from_piece(piece: Option<ChessPiece>) -> char {
         if piece.is_none() {
             return '.';
         }
