@@ -10,9 +10,9 @@ pub enum PieceType {
 }
 
 // Piece structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChessPiece {
-    piece_type: PieceType,
+    pub piece_type: PieceType,
     is_white:   bool,
     has_moved:  bool,
 }

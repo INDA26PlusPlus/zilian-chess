@@ -1,4 +1,4 @@
-use crate::pieces::ChessPiece;
+use crate::pieces::{self, ChessPiece};
 
 
 // A nested array (Mailbox approach) that can either be empty or contain a piece.
@@ -79,7 +79,19 @@ impl Board {
             None => return false,
         };
 
-        start_piece.is_white() == stop_piece.is_white()
+        return start_piece.is_white() == stop_piece.is_white();
+    }
+
+    // Returns True if moving from start to stop would be considered a capture
+    pub fn would_be_capture(&self, start: &Square, stop: &Square) -> bool {
+
+        match self.get_piece_square(stop) {
+            None => return false, // Empty so no capture
+            Some(_) => () // Not empty
+        };
+
+        // Check that color is diffirent
+        return !self.is_same_color(start, stop);
     }
 
 }
@@ -131,7 +143,7 @@ impl Square {
     }
 
     // Turns a string of chess notation "a1" into a Square.
-    pub fn square_from_notation_str(notation_string: &str) -> Option<Self> {
+    pub fn new_square_from_notation_str(notation_string: &str) -> Option<Self> {
         // Not Good
         if notation_string.len() != 2 {
             return None;

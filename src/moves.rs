@@ -6,8 +6,6 @@ a move is valid or not.
 Only issue is that it's built using like only bools which was nice and
 easy when making the first pieces but I now have to implement special moves
 and castling and en passant require more info than just a yes/no
-
-If i get to finish thi sa komp I'll do that otherwise... D:
 */
 use crate::board::{Board, Square};
 use crate::pieces::PieceType;
@@ -17,24 +15,59 @@ use crate::pieces::PieceType;
 
 pub enum SpecialMove {
     Normal,
-    Castling {rook_start: Square, rook_stop: Square}
-    // En_Passant
-    // Promotion
+    Castling {rook_start: Square, rook_stop: Square},
+
+
+    Promotion {promotion_square: Square},
+
+    // If a double pawn move has been made previously
+    // Square is the skipped pawn square (behind the pawn that moved)
+    En_Passant {en_passant_square: Square}
 }
 pub struct Move {
-    special: SpecialMove,
+    // Flags depending on if the move was "special"
+    // Aka, castling, en_passant, promotion and needs extra handling
+    flag: SpecialMove,
+    // Counts moves since a pawn or capture move (50 move rule)
+    since_pawn_capture: u8
 }
 
 impl Move {
 
     pub fn new_move () -> Self {
         Self {
-            special: SpecialMove::Normal
+            flag: SpecialMove::Normal,
+            since_pawn_capture: 0
+        }
+    }
+
+    // Increments the 50 move rule
+    pub fn fifty_increment(&mut self) {
+        self.since_pawn_capture += 1;
+    }
+
+    // Resets 50 move rule
+    pub fn fifty_reset(&mut self) {
+        self.since_pawn_capture = 0;
+    }
+
+    pub fn fifty_handler(&mut self, board: &Board, start: &Square, stop: &Square) {
+        // Is it capture -> Reset
+        if board.would_be_capture(start, stop) {
+            self.fifty_reset();
+        }
+        // Is it pawn moving -> Reset
+        else if board.get_piece_square(start).unwrap().piece_type() == PieceType::Pawn {
+            self.fifty_reset();
+        }
+        // None of the above -> Reset
+        else {
+            self.fifty_increment();
         }
     }
 
     // Runs different movement checks depending on starting piece.
-    pub fn check_move(board: &Board, start: &Square, stop: &Square) -> bool {
+    pub fn check_move(&self, board: &Board, start: &Square, stop: &Square) -> bool {
 
         // Gets piece at start and check
         let piece = match board.get_piece_square(start) {
@@ -43,17 +76,31 @@ impl Move {
         };
 
         match piece.piece_type() {
-            PieceType::Pawn     => Self::pawn_move_check    (board, start, stop),
-            PieceType::Knight   => Self::knight_move_check  (board, start, stop),
-            PieceType::Bishop   => Self::bishop_move_check  (board, start, stop),
-            PieceType::Rook     => Self::rook_move_check    (board, start, stop),
-            PieceType::Queen    => Self::queen_move_check   (board, start, stop),
-            PieceType::King     => Self::king_move_check    (board, start, stop),
+            PieceType::Pawn     => self.pawn_move_check    (board, start, stop),
+            PieceType::Knight   => self.knight_move_check  (board, start, stop),
+            PieceType::Bishop   => self.bishop_move_check  (board, start, stop),
+            PieceType::Rook     => self.rook_move_check    (board, start, stop),
+            PieceType::Queen    => self.queen_move_check   (board, start, stop),
+            PieceType::King     => self.king_move_check    (board, start, stop),
         }
     }
 
+    // Sets flag
+    pub fn set_flag(&mut self, flag: SpecialMove) {
+        self.flag = flag;
+    }
+
+    // Gets flag 
+    pub fn get_flag(&self) -> &SpecialMove {
+        &self.flag
+    }
+
+    pub fn en_passant_flag(passant_square: Square) -> SpecialMove {
+        SpecialMove::En_Passant { en_passant_square: passant_square }
+    }
+
     // Move diagonal in all directions, steps until collision.
-    fn bishop_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
+    fn bishop_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const BISHOP_MOVE_DIRECTION: [(i8, i8); 4] = [
             (1,1),  (1,-1),
             (-1,1), (-1,-1),
@@ -65,11 +112,12 @@ impl Move {
                 return true;
             }
         }
+
         return false;
     }
 
     // Move cardinally any direction, endless steps.
-    fn rook_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
+    fn rook_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const ROOK_MOVE_DIRECTION: [(i8, i8); 4] = [
             (1,0),  (-1,0),
             (0,1), (0,-1),
@@ -85,7 +133,7 @@ impl Move {
     }
 
     // Combination of rook and bishop
-    fn queen_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
+    fn queen_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const QUEEN_MOVE_DIRECTION: [(i8, i8); 8] = [
             (1,1),  (1,-1),  (1,0), (-1,0),
             (-1,1), (-1,-1), (0,1), (0,-1),
@@ -101,7 +149,7 @@ impl Move {
     }
 
     // Move 2+1 in any direction. 1 step
-    fn knight_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
+    fn knight_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const KNIGHT_MOVES: [(i8, i8); 8] = [
             (2,1),  (2,-1),  (1,2),   (1,-2),
             (-1,2), (-1,-2), (-2, 1), (-2, -1),
@@ -126,7 +174,7 @@ impl Move {
     // If enemy has LOS, mark as checked
     // If friendly rook with has_moved = false and king has_moved = false
         // Allow castle by taking 2 steps to the rook and moving the rook next to the king
-    fn king_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
+    fn king_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const KING_MOVES: [(i8, i8); 8] = [
             (1,1),  (1,-1),  (1,0), (-1,0),
             (-1,1), (-1,-1), (0,1), (0,-1),
@@ -166,7 +214,7 @@ impl Move {
         }
 
         // Is king in check
-        if Self::square_attacked(board, start, king.is_white()) {
+        if self.square_attacked(board, start, king.is_white()) {
             return false;
         }
 
@@ -193,7 +241,7 @@ impl Move {
 
     // Scans the board for an enemy piece that can reach `square`, used to
     // check the king isn't in, through, or landing in check while castling.
-    fn square_attacked(board: &Board, square: &Square, is_white: bool) -> bool {
+    fn square_attacked(&self, board: &Board, square: &Square, is_white: bool) -> bool {
         for file in 0..8 {
             for rank in 0..8 {
                 let attacker_square = match Square::new_square_from_index(file, rank) {
@@ -203,7 +251,7 @@ impl Move {
 
                 match board.get_piece_square(&attacker_square) {
                     Some(piece) if piece.is_white() != is_white => {
-                        if Self::check_move(board, &attacker_square, square) {
+                        if self.check_move(board, &attacker_square, square) {
                             return true;
                         }
                     }
@@ -217,7 +265,7 @@ impl Move {
     // Since a Pawn doesn't "step" like a Rook, Bishop or Queen
     // We can take part of the Knight logic and look for if the
     // Change between the start and stop square is possible
-    fn pawn_move_check(board: &Board, start: &Square, stop: &Square) -> bool {
+    pub fn pawn_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const PAWN_MOVES: [(i8, i8); 4] = [
             (1,0),  (1,-1),
             (1,1), (2,0)
@@ -336,10 +384,10 @@ mod tests {
             "PPPPPPPP",
             "RNBKQBNR",
             ]);
-            let start = Square::square_from_notation_str("c3").unwrap();
-            let stop= Square::square_from_notation_str("c4").unwrap();
+            let start = Square::new_square_from_notation_str("c3").unwrap();
+            let stop= Square::new_square_from_notation_str("c4").unwrap();
             // Must be true or cargo test will fail
-            assert!(!Move::check_move(&board, &start, &stop));
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
     }
 
@@ -361,9 +409,9 @@ mod tests {
             "....P...",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e2").unwrap();
-            let stop= Square::square_from_notation_str("e3").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("e2").unwrap();
+            let stop= Square::new_square_from_notation_str("e3").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -379,9 +427,9 @@ mod tests {
             "....P...",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e2").unwrap();
-            let stop= Square::square_from_notation_str("e3").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("e2").unwrap();
+            let stop= Square::new_square_from_notation_str("e3").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -397,9 +445,9 @@ mod tests {
             "....P...",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e2").unwrap();
-            let stop= Square::square_from_notation_str("e4").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("e2").unwrap();
+            let stop= Square::new_square_from_notation_str("e4").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -415,13 +463,13 @@ mod tests {
             "....P...",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e2").unwrap();
+            let start = Square::new_square_from_notation_str("e2").unwrap();
 
             // Sets the pawn "has_moved" to true
             board.set_piece_square(&start, ChessPiece::new(Pawn, true, true));
 
-            let stop= Square::square_from_notation_str("e4").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let stop= Square::new_square_from_notation_str("e4").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -437,9 +485,9 @@ mod tests {
             "....P...",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e2").unwrap();
-            let stop= Square::square_from_notation_str("e4").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("e2").unwrap();
+            let stop= Square::new_square_from_notation_str("e4").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -455,9 +503,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e5").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e5").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -473,9 +521,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e5").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e5").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -491,9 +539,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e5").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e5").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -509,9 +557,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e7").unwrap();
-            let stop= Square::square_from_notation_str("e5").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("e7").unwrap();
+            let stop= Square::new_square_from_notation_str("e5").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -527,9 +575,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("e7").unwrap();
-            let stop= Square::square_from_notation_str("f6").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("e7").unwrap();
+            let stop= Square::new_square_from_notation_str("f6").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
     }
 
@@ -549,9 +597,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e6").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -567,9 +615,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e6").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
 
@@ -586,9 +634,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("f4").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("f4").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -604,9 +652,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e6").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
     }
@@ -627,9 +675,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("h8").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("h8").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -645,9 +693,9 @@ mod tests {
             ".p......",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("b2").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("b2").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
 
@@ -664,9 +712,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e6").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -682,9 +730,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("c5").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("c5").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
     }
 
@@ -704,9 +752,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("d8").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("d8").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -722,9 +770,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("a8").unwrap();
-            let stop= Square::square_from_notation_str("g8").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("a8").unwrap();
+            let stop= Square::new_square_from_notation_str("g8").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
 
@@ -741,9 +789,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("g3").unwrap();
-            let stop= Square::square_from_notation_str("f4").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("g3").unwrap();
+            let stop= Square::new_square_from_notation_str("f4").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -759,9 +807,9 @@ mod tests {
             "...P....",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("d2").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("d2").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
     }
 
@@ -781,9 +829,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("d6").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("d6").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -799,9 +847,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("b7").unwrap();
-            let stop= Square::square_from_notation_str("d5").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("b7").unwrap();
+            let stop= Square::new_square_from_notation_str("d5").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
 
@@ -818,9 +866,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e6").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -836,9 +884,9 @@ mod tests {
             "...P....",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("d2").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("d2").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
     }
 
@@ -858,9 +906,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("d5").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("d5").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -876,9 +924,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d5").unwrap();
-            let stop= Square::square_from_notation_str("e5").unwrap();
-            assert!(Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d5").unwrap();
+            let stop= Square::new_square_from_notation_str("e5").unwrap();
+            assert!(Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
 
@@ -895,9 +943,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("e6").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("e6").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
 
         #[test]
@@ -913,9 +961,9 @@ mod tests {
             "........",
             "........",
             ]);
-            let start = Square::square_from_notation_str("d4").unwrap();
-            let stop= Square::square_from_notation_str("d3").unwrap();
-            assert!(!Move::check_move(&board, &start, &stop));
+            let start = Square::new_square_from_notation_str("d4").unwrap();
+            let stop= Square::new_square_from_notation_str("d3").unwrap();
+            assert!(!Move::check_move(&Move::new_move(), &board, &start, &stop));
         }
     }
 }
