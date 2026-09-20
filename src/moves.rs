@@ -28,12 +28,12 @@ impl Move {
     }
 
     // Increments the 50 move rule
-    pub fn fifty_increment(&mut self) {
+    fn fifty_increment(&mut self) {
         self.since_pawn_capture += 1;
     }
 
     // Resets 50 move rule
-    pub fn fifty_reset(&mut self) {
+    fn fifty_reset(&mut self) {
         self.since_pawn_capture = 0;
     }
 
@@ -77,10 +77,6 @@ impl Move {
 
     pub fn set_en_passant_square(&mut self, square: Option<Square>) {
         self.en_passant_square = square;
-    }
-
-    pub fn get_en_passant_square(&self) -> &Option<Square> {
-        return &self.en_passant_square;
     }
 
     // Checks if the move would be a valid castling move
@@ -269,7 +265,7 @@ impl Move {
     // Since a Pawn doesn't "step" like a Rook, Bishop or Queen
     // We can take part of the Knight logic and look for if the
     // Change between the start and stop square is possible
-    pub fn pawn_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
+    fn pawn_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const PAWN_MOVES: [(i8, i8); 4] = [
             (1,0),  (1,-1),
             (1,1), (2,0)

@@ -302,12 +302,12 @@ impl ChessGame {
     }
 
     // In check with no legal moves
-    pub fn is_checkmate(&self, board: &Board, is_white: bool) -> bool {
+    fn is_checkmate(&self, board: &Board, is_white: bool) -> bool {
         self.is_in_check(board, is_white) && !self.has_legal_moves(board, is_white)
     }
 
     // Not in check but no legal moves
-    pub fn is_stalemate(&self, board: &Board, is_white: bool) -> bool {
+    fn is_stalemate(&self, board: &Board, is_white: bool) -> bool {
         !self.is_in_check(board, is_white) && !self.has_legal_moves(board, is_white)
     }
 
