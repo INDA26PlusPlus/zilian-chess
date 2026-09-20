@@ -42,7 +42,7 @@ impl Board {
             "........",
             "........",
             "PPPPPPPP",
-            "RNBKQBNR",
+            "RNBQKBNR",
         ])
     }
 

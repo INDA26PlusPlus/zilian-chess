@@ -1,5 +1,5 @@
 use crate::board::{Board, Square};
-use crate::pieces::{PieceType};
+use crate::pieces::{ChessPiece, PieceType};
 use crate::moves::Move;
 
 // Improved error handling for the API
@@ -11,6 +11,7 @@ pub enum MoveError {
     CantSelfHarm,    // Tried to attack own piece
     IllegalMove,     // Tried an illegal move
     HangsKing,       // Tried a move that self-checks
+    InvalidPromotion // Can't promote to specific PieceType
 }
 
 pub struct ChessGame {
@@ -83,16 +84,36 @@ impl ChessGame {
     }
 
     pub fn make_move_notation(&mut self, start: &str, stop: &str) -> Result<(), MoveError> {
-        self.make_move(
+        self.make_move_internal(
             Square::new_square_from_notation_str(&start),
-            Square::new_square_from_notation_str(&stop)
+            Square::new_square_from_notation_str(&stop),
+            None,
         )
+    }
+
+    // Same as make_move_notation, but for after MoveError: InvalidPromotion
+    pub fn make_promotion_notation(&mut self, start: &str, stop: &str, promotion_choice: PieceType) -> Result<(), MoveError> {
+        self.make_move_internal(
+            Square::new_square_from_notation_str(&start),
+            Square::new_square_from_notation_str(&stop),
+            Some(promotion_choice),
+        )
+    }
+
+    // Make move with squares (assumes no promotion)
+    pub fn make_move(&mut self, start: Option<Square>, stop: Option<Square>) -> Result<(), MoveError> {
+        self.make_move_internal(start, stop, None)
+    }
+
+    // Promotion move (after make_move returns MoveError: InvalidPromotion)
+    pub fn make_promotion_move(&mut self, start: Option<Square>, stop: Option<Square>, promotion_choice: PieceType) -> Result<(), MoveError> {
+        self.make_move_internal(start, stop, Some(promotion_choice))
     }
 
     // Gets a start and stop square
     // Runs checks
     // Prints relevant error depending on where move fails/ why is invalid
-    pub fn make_move(&mut self, start: Option<Square>, stop: Option<Square>) -> Result<(), MoveError> {
+    fn make_move_internal(&mut self, start: Option<Square>, stop: Option<Square>, promotion_choice: Option<PieceType>) -> Result<(), MoveError> {
 
         // Checks that start square is valid
         let start_square = match start {
@@ -135,10 +156,19 @@ impl ChessGame {
         // Since the move is valid by the previous checks we can check how it would effect the fifty move rule
         self.movement_logic.fifty_handler(&self.board_state, &start_square, &stop_square);
 
-        // If the move a king-castling move
+        // If the move is a king-castling move
         if self.movement_logic.is_valid_castle(&self.board_state, &start_square, &stop_square) {
-            todo!()
-            // Moves the castle to the right positions
+            // Determines where the rook is (king/queen-side)
+            let step: i8 = if stop_square.file() > start_square.file() { 1 } else { -1 };
+            let rook_file = if step > 0 { 7 } else { 0 };
+
+            let rook_start = Square::new_square_from_index(rook_file, start_square.rank()).unwrap();
+            let rook_stop = Square::new_square_from_index(stop_square.file() - step, start_square.rank()).unwrap();
+
+            let mut rook = self.board_state.get_piece_square(&rook_start).unwrap();
+            rook.has_moved_true();
+            self.board_state.set_piece_square(&rook_start, Some(rook));
+            self.board_state.move_piece_square(&rook_start, &rook_stop);
         }
 
         // If the move is a double pawn push, setting up en passant for next move
@@ -159,19 +189,30 @@ impl ChessGame {
 
         // If the move is a pawn promotion
         else if self.movement_logic.is_valid_promotion(&self.board_state, &start_square, &stop_square) {
-            todo!()
-            // Moves the piece and changes the type to what it needs to be
-            // (will need to add API support here so that someone who makes the move can choose what piece it's promoted to)
+            // Determine what pawn should be promoted to
+            if promotion_choice == Some(PieceType::Queen)
+            || promotion_choice == Some(PieceType::Rook)
+            || promotion_choice == Some(PieceType::Bishop)
+            || promotion_choice == Some(PieceType::Knight) {
+                // Swaps the pawn for the chosen piece; the normal move below
+                // then places it on stop_square like any other move.
+                piece = ChessPiece::new(promotion_choice.unwrap(), piece.is_white(), false).unwrap();
+            }
+            else {
+                // If no promotion is supplied/invalid
+                // Get error and can then prompt user for promotion piece
+                return Err(MoveError::InvalidPromotion);
+            }
         }
 
         // Since piece is allowed to move to stop square, and we took care of special cases, we make move as normal
         piece.has_moved_true();
         self.board_state.set_piece_square(&start_square, Some(piece));  // Set start_square to same piece but moved
         self.board_state.move_piece_square(&start_square, &stop_square);            // Actually moves the piece
-
+        // Change whose turn it is
         self.is_white_turn = !self.is_white_turn;
 
-        Ok(())
+        return Ok(());
     }
 
     // Find square with king of given color
@@ -390,5 +431,121 @@ mod tests {
 
         // Checks that game IS tie after 50 moves
         assert!(game.in_tie());
+    }
+
+    #[test]
+    fn castle_kingside() {
+        // Try to see if kingside castling works
+        let board = Board::board_from_strings([
+        "....k..r",
+        "........",
+        "......R.",
+        "........",
+        "........",
+        "........",
+        "........",
+        "....K..R",
+        ]);
+        let mut game = ChessGame::new_game(board, true);
+        // Moves are valid
+        assert!(game.make_move_notation("e1", "g1").is_ok());
+        assert!(!game.make_move_notation("e8", "g8").is_ok());
+        
+        // Makes castling move
+        let _ = game.make_move_notation("e1", "g1");
+        let _ = game.make_move_notation("e8", "g8");
+
+        // White
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("g1").unwrap()).is_some()); // King 
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("f1").unwrap()).is_some()); // Rook
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("e1").unwrap()).is_none()); // Empty
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("h1").unwrap()).is_none()); // Empty
+        // Black
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("g8").unwrap()).is_some()); // King 
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("f8").unwrap()).is_some()); // Rook
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("e8").unwrap()).is_none()); // Empty
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("h8").unwrap()).is_none()); // Empty
+    }
+
+    #[test]
+    fn castle_queenside() {
+        // Try to see if queenside castling works
+        let board = Board::board_from_strings([
+        "r...k...",
+        "........",
+        "........",
+        "........",
+        "........",
+        "..r.....",
+        "........",
+        "R...K...",
+        ]);
+        let mut game = ChessGame::new_game(board, false);
+        // Moves are valid
+        assert!(game.make_move_notation("e8", "c8").is_ok());
+        assert!(!game.make_move_notation("e1", "c1").is_ok());
+
+        // Makes castling move
+        let _ = game.make_move_notation("e8", "c8");
+        let _ = game.make_move_notation("e1", "c1");
+
+        // Black
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("c8").unwrap()).is_some()); // King
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("d8").unwrap()).is_some()); // Rook
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("e8").unwrap()).is_none()); // Empty
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("a8").unwrap()).is_none()); // Empty
+        // White
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("c1").unwrap()).is_some()); // King
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("d1").unwrap()).is_some()); // Rook
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("e1").unwrap()).is_none()); // Empty
+        assert!(!game.board().get_piece_square(&Square::new_square_from_notation_str("a1").unwrap()).is_none()); // Empty
+    }
+
+    #[test]
+    fn white_queen_promotion() {
+        // Try to see if pawn promotion works
+        let board = Board::board_from_strings([
+        "........",
+        "....P...",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        ]);
+        let mut game = ChessGame::new_game(board, true);
+        // Can't make promotion move if promotion piece is not given
+        assert!(!game.make_move_notation("e7", "e8").is_ok());
+        // Works if promotion given
+        assert!(game.make_promotion_notation("e7", "e8", PieceType::Queen).is_ok());
+
+        assert!(game.board().get_piece_square(&Square::new_square_from_notation_str("e7").unwrap()).is_none()); // Empty
+        assert_eq!(game.board().get_piece_file_rank(4, 7).unwrap().piece_type(), PieceType::Queen); // Queen
+        assert!(game.board().get_piece_file_rank(4, 7).unwrap().is_white()); // Same color
+    }
+
+    #[test]
+    fn black_knight_promotion() {
+        // Try to see if pawn promotion works
+        let board = Board::board_from_strings([
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "....p...",
+        "........",
+        ]);
+        let mut game = ChessGame::new_game(board, false);
+        // Can't make promotion move if promotion piece is not given
+        assert!(!game.make_move_notation("e2", "e1").is_ok());
+        // Works if promotion given
+        assert!(game.make_promotion_notation("e2", "e1", PieceType::Knight).is_ok());
+
+        assert!(game.board().get_piece_file_rank(4, 1).is_none()); // Empty
+        assert_eq!(game.board().get_piece_file_rank(4, 0).unwrap().piece_type(), PieceType::Knight); // Knight
+        assert!(!game.board().get_piece_file_rank(4, 0).unwrap().is_white()); // Same color
     }
 }

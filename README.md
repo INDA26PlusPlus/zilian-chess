@@ -1,7 +1,3 @@
-# NOTE
-Might add some extra methods. This wouldn't effect any existing methods so API is still fully functioning at its current state
-
-
 # ChessBox
 Chess library made in **RUST**!
 The library uses a mailbox design (hence the name), specifically a 2d (8x8) nested array. Where each value is a ChessPiece structure.
@@ -87,6 +83,12 @@ make_move(&mut self, start: Option<Square>, stop: Option<Square>) -> Result<(), 
 ```
 When making a move we declare the square we want to "start" the move from, and the square we want to "stop" on. The method then checks if the move is valid and will either make the move, or return a `MoveError`.
 
+Pawn promotion will return a `MoveError::InvalidPromotion` and move wont be made. To actually perform the promotion, redo the same move with:
+```rust
+pub fn make_promotion_move(&mut self, start: Option<Square>, stop: Option<Square>, promotion_choice: PieceType) -> Result<(), MoveError>
+```
+This means you won't be asked to supply a promotion piece unless it's needed
+
 ## Errors
 The types of `MoveError`s are as follows:
 | MoveError | Description |
@@ -97,34 +99,35 @@ The types of `MoveError`s are as follows:
 | CantSelfHarm      | stops square is occupied by your own piece |
 | IllegalMove       | Illegal for piece on start to move to stop |
 | HangsKing         | Would leave your own king in check |
+| InvalidPromotion  | Move is a valid promotion but no (or an invalid) `PieceType` was given |
 
 # Example:
 Heres an example of how the API could be used:
 ```rust
-    // Makes a new game with standard layout
-    let mut game: ChessGame = ChessGame::new_standard_game();
+// Makes a new game with standard layout
+let mut game: ChessGame = ChessGame::new_standard_game();
 
-    // Make a new Square from a file and rank index
-    // .unwrap() the Option<Square> since we know it's valid in this example
-    let example_square: Square = Square::new_square_from_index(4, 0).unwrap();
+// Make a new Square from a file and rank index
+// .unwrap() the Option<Square> since we know it's valid in this example
+let example_square: Square = Square::new_square_from_index(4, 0).unwrap();
 
-    // Gets the value of the example_square on the board
-    let example_piece: Option<ChessPiece> = game.board().get_piece_square(&example_square);
+// Gets the value of the example_square on the board
+let example_piece: Option<ChessPiece> = game.board().get_piece_square(&example_square);
 
-    // We can now check several things about the piece on the example square
-    match example_piece {
-        Some(piece) => {
-            // Checking color of piece
-            if piece.is_white() {
-                println!("The piece on {}, {} is WHITE!", example_square.file(), example_square.rank())
-            }
-            // Checking type of piece
-            if piece.piece_type() == PieceType::King {
-                println!("The piece on {}, {} is a KING!", example_square.file(), example_square.rank())
-            }
+// We can now check several things about the piece on the example square
+match example_piece {
+    Some(piece) => {
+        // Checking color of piece
+        if piece.is_white() {
+            println!("The piece on {}, {} is WHITE!", example_square.file(), example_square.rank())
         }
-        None => println!("The piece on {}, {} is empty!", example_square.file(), example_square.rank())
+        // Checking type of piece
+        if piece.piece_type() == PieceType::King {
+            println!("The piece on {}, {} is a KING!", example_square.file(), example_square.rank())
+        }
     }
+    None => println!("The piece on {}, {} is empty!", example_square.file(), example_square.rank())
+}
 ```
 
 # Additional information
@@ -132,7 +135,7 @@ There are several more methods at your disposal within the library. Some notable
 ```rust
 pub fn make_move_notation(&mut self, start: &str, stop: &str) -> Result<(), MoveError>
 
-pub fn is_white_turn(&self) -> bool
+pub fn is_white_turn(&self) -> bool // turn swap is handled by ChessGame, this just gets who's turn it is
 
 pub fn turn_text(&self) -> &str
 
@@ -142,6 +145,8 @@ pub fn in_checkmate(&self) -> bool
 
 pub fn in_stalemate(&self) -> bool
 
+pub fn in_tie(&self) -> bool
+
 pub fn get_piece_file_rank(&self, file: i8, rank: i8) -> Option<ChessPiece>
 
 pub fn would_be_capture(&self, start: &Square, stop: &Square) -> bool
@@ -150,5 +155,3 @@ pub fn piece_from_letter(letter: char, has_moved: bool) -> Option<ChessPiece>
 
 pub fn letter_from_piece(piece: Option<ChessPiece>) -> char
 ```
-
-I plan on making some minor changes with the underlying movement logic, this shouldn't effect how one would use the API since everything handled is handled through the `ChessGame`.

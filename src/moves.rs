@@ -85,7 +85,37 @@ impl Move {
 
     // Checks if the move would be a valid castling move
     pub fn is_valid_castle(&self, board: &Board, start: &Square, stop: &Square) -> bool {
-        return false;
+
+        // Checks that piece exists
+        let king = match board.get_piece_square(start) {
+            Some(piece) => piece,
+            None => return false,
+        };
+
+        // Checks that piece is king
+        if king.piece_type() != PieceType::King || king.has_moved() {
+            return false;
+        }
+
+        let rank_change = stop.rank() - start.rank();
+        let file_change = stop.file() - start.file();
+
+        // Checks that move is trying to take 2 steps to the side
+        if rank_change != 0 || (file_change != 2 && file_change != -2) {
+            return false;
+        }
+
+        // Cant if in check
+        if self.square_attacked(board, start, king.is_white()) {
+            return false;
+        }
+
+        // Sets castling direction
+        let step: i8 = if file_change > 0 { 1 } else { -1 };
+
+        // Checks the rook is eligible, the path to it is clear, and the king
+        // doesn't pass through or land on an attacked square.
+        self.castling_directional_check(board, start, step)
     }
 
     // Checks if the move is a double pawn push, enabling en passant next move
@@ -120,7 +150,22 @@ impl Move {
 
     // Checks if move would be a promotion
     pub fn is_valid_promotion(&self, board: &Board, start: &Square, stop: &Square) -> bool {
-        return false;
+        let piece = match board.get_piece_square(start) {
+            Some(piece) => piece,
+            None => return false,
+        };
+
+        if piece.piece_type() != PieceType::Pawn {
+            return false;
+        }
+
+        // Checks that its going to the back-rank (1 if black 8 if white)
+        let back_rank = if piece.is_white() { 7 } else { 0 };
+        if stop.rank() != back_rank {
+            return false;
+        }
+
+        return self.pawn_move_check(board, start, stop);
     }
 
     // Move diagonal in all directions, steps until collision.
@@ -195,9 +240,6 @@ impl Move {
     }
 
     // Move any direction. 1 step.
-    // If enemy has LOS, mark as checked
-    // If friendly rook with has_moved = false and king has_moved = false
-        // Allow castle by taking 2 steps to the rook and moving the rook next to the king
     fn king_move_check(&self, board: &Board, start: &Square, stop: &Square) -> bool {
         const KING_MOVES: [(i8, i8); 8] = [
             (1,1),  (1,-1),  (1,0), (-1,0),
@@ -220,47 +262,8 @@ impl Move {
             return !board.is_same_color(start, stop);
         }
 
-        ////// BEGINNING OF A VERY NOT GOOD CASTLING SCRIPT
-        if rank_change != 0 || (file_change != 2 && file_change != -2) {
-            return false;
-        }
-        // Past here we're checking if its a valid castling move
-
-        // Find the king
-        let king = match board.get_piece_square(start) {
-            Some(piece) => piece,
-            None => return  false,
-        };
-
-        // Has king moved
-        if king.has_moved() {
-            return false;
-        }
-
-        // Is king in check
-        if self.square_attacked(board, start, king.is_white()) {
-            return false;
-        }
-
-        // Iterate and check that all the squares to the rook are empty
-        // On square 1 and 2 of iteration check if that spot is in check
-        // On reaching (or not reaching rook) se if the rook exists or has_moved
-        let step: i8;
-        if file_change > 0 {
-            step = 1
-        }
-        else {
-            step = -1
-        }
-
-        let mut _file = start.file() + step;
-
-
-        // If no check and clear path to rook, nobody has_moved
-
-
-    return false;
-
+        // Not a valid normal king move so check if its a castling move
+        return self.is_valid_castle(board, start, stop);
     }
 
     // Since a Pawn doesn't "step" like a Rook, Bishop or Queen
@@ -352,7 +355,7 @@ impl Move {
             rank = rank + rank_change;
             file = file + file_change;
 
-            // Go to new direction outside boundary
+            // Go to new direction cause outside boundary
             if 0 > rank || rank >= 8 || 0 > file || file >= 8 {
                 break;
             }
@@ -380,6 +383,57 @@ impl Move {
             }
         }
         return false;
+    }
+
+    // Checks castling is ok based of direction
+    fn castling_directional_check(&self, board: &Board, start: &Square, file_change: i8) -> bool {
+
+        // Determine color
+        let king_is_white = board.get_piece_square(start).unwrap().is_white();
+
+        // Determines the rook position based of direction (file_change -1 or 1)
+        let rook_file = if file_change > 0 { 7 } else { 0 };
+        let rook_square = Square::new_square_from_index(rook_file, start.rank()).unwrap();
+
+        // Checks that rook exists on the a or h file
+        let rook = match board.get_piece_square(&rook_square) {
+            Some(piece) => piece,
+            None => return false,
+        };
+        // Rook hasn't moved and is same color
+        if rook.piece_type() != PieceType::Rook || rook.has_moved() || rook.is_white() != king_is_white {
+            return false;
+        }
+
+        // Steps towards the rook checking that path is clear
+        let rank = start.rank();
+        let mut file = start.file();
+        // Makes sure that the first 2 steps aren't in check
+        let mut steps = 0;
+
+        loop {
+            // Takes step
+            file = file + file_change;
+
+            // Reached rook square -> Path is all clear
+            if file == rook_square.file() {
+                return true;
+            }
+
+            // Anything in the path -> False
+            if board.get_piece_file_rank(file, rank).is_some() {
+                return false;
+            }
+
+            // The first two steps must be safe
+            steps += 1;
+            if steps <= 2 {
+                let square = Square::new_square_from_index(file, rank).unwrap();
+                if self.square_attacked(board, &square, king_is_white) {
+                    return false;
+                }
+            }
+        }
     }
 }
 
