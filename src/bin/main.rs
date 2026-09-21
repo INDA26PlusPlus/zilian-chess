@@ -4,7 +4,7 @@
 // it from a user point-of-view.
 
 use chess_box::board::{Board, Square};
-use chess_box::pieces::{ChessPiece, PieceType};
+use chess_box::pieces::{ChessPiece};
 use chess_box::game::ChessGame;
 use std::io;
 
@@ -14,32 +14,10 @@ fn main () {
     // Makes a new game with standard layout
     let mut game: ChessGame = ChessGame::new_standard_game();
 
-    // Make a new Square from a file and rank index
-    // .unwrap() the Option<Square> since we know it's valid in this example
-    let example_square: Square = Square::new_square_from_index(4, 0).unwrap();
-
-    // Gets the value of the example_square on the board
-    let example_piece: Option<ChessPiece> = game.board().get_piece_square(&example_square);
-
-    // We can now check several things about the piece on the example square
-    match example_piece {
-        Some(piece) => {
-            // Checking color of piece
-            if piece.is_white() {
-                println!("The piece on {}, {} is WHITE!", example_square.file(), example_square.rank())
-            }
-            // Checking type of piece
-            if piece.piece_type() == PieceType::King {
-                println!("The piece on {}, {} is a KING!", example_square.file(), example_square.rank())
-            }
-        }
-        None => println!("The piece on {}, {} is empty!", example_square.file(), example_square.rank())
-    }
-
 
     loop {
         println!("------------------");
-         display_board(game.board());
+        display_board(game.board());
         println!("---{}---", game.turn_text());
 
         let mut input_start = String::new();
@@ -63,6 +41,20 @@ fn main () {
                 Ok(()) => {},
                 Err(message) => println!("{:?}", message)
             }
+        
+        if game.in_check() {
+            print!("Check ")
+        }
+        if game.in_checkmate() {
+            print!("Checkmate ")
+        }
+        if game.in_stalemate() {
+            print!("Stalemate ")
+        }
+        if game.in_tie() {
+            print!("Tie ")
+        }
+        
         }
 
     /*
@@ -82,11 +74,6 @@ fn display_board (board: &Board) { // Displays copies of the board since we're c
             let square = Square::new_square_from_index(file, rank).unwrap();
             let piece = board.get_piece_square(&square);
             print!("{} ", ChessPiece::letter_from_piece(piece));
-            if !piece.is_none() {
-                if piece.unwrap().piece_type() == PieceType::Knight {
-                    print!("ITS A KING")
-                }
-            }
         }
         println!();
     }

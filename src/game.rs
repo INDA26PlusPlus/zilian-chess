@@ -115,6 +115,8 @@ impl ChessGame {
     // Prints relevant error depending on where move fails/ why is invalid
     fn make_move_internal(&mut self, start: Option<Square>, stop: Option<Square>, promotion_choice: Option<PieceType>) -> Result<(), MoveError> {
 
+        // For clearing en_passant
+        let mut passant_clearing = true;
         // Checks that start square is valid
         let start_square = match start {
             Some(square) => square,
@@ -177,6 +179,7 @@ impl ChessGame {
             let direction: i8 = if piece.is_white() { 1 } else { -1 };
             let passant_square = Square::new_square_from_index(start_square.file(), start_square.rank() + direction).unwrap();
             self.movement_logic.set_en_passant_square(Some(passant_square));
+            passant_clearing = false;
         }
 
         // If the move is a en_passant capture move
@@ -210,6 +213,9 @@ impl ChessGame {
         self.board_state.set_piece_square(&start_square, Some(piece));  // Set start_square to same piece but moved
         self.board_state.move_piece_square(&start_square, &stop_square);            // Actually moves the piece
         // Change whose turn it is
+        if passant_clearing {
+            self.movement_logic.set_en_passant_square(None);
+        }
         self.is_white_turn = !self.is_white_turn;
 
         return Ok(());
@@ -282,13 +288,14 @@ impl ChessGame {
                 match board.get_piece_file_rank(file, rank) {
                     Some(piece) 
                     => if piece.is_white() == !is_white {
-                        continue; // Skip if not correct color
+                        continue; // If checking_piece isn't same color as who's turn it is
                     },
                     None => continue, // Skip if empty
                 }
                 for dest_file in 0..8 {
                     for dest_rank in 0..8 {
                         let destination_square = Square::new_square_from_index(dest_file, dest_rank).unwrap();
+                        // If there is a move from checking_square to destination_square
                         if self.movement_logic.check_move(board, &checking_square, &destination_square) {
                             if !self.hangs_king(board, &checking_square, &destination_square, is_white) {
                                 return true;
