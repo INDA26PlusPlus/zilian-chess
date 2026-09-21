@@ -97,7 +97,7 @@ impl Board {
 }
 
 // Struct for the file and rank of a square on the board
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub struct Square {
     file: i8,
     rank: i8
