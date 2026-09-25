@@ -9,6 +9,35 @@ pub enum PieceType {
     King
 }
 
+impl Into<char> for PieceType {
+    fn into(self) -> char {
+        match self {
+            Self::Pawn => 'P',
+            Self::Bishop => 'B',
+            Self::King => 'K',
+            Self::Rook => 'R',
+            Self::Knight => 'N',
+            Self::Queen => 'Q'
+        }
+    }
+}
+
+impl TryFrom<char> for PieceType {
+    type Error = ();
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            'P' => Ok(Self::Pawn),
+            'B' => Ok(Self::Bishop),
+            'K' => Ok(Self::King),
+            'R' => Ok(Self::Rook),
+            'Q' => Ok(Self::Queen),
+            'N' => Ok(Self::Knight),
+            _ => Err(())
+        }
+    }
+}
+
 // Piece structure
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChessPiece {

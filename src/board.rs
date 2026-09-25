@@ -97,7 +97,7 @@ impl Board {
 }
 
 // Struct for the file and rank of a square on the board
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Square {
     file: i8,
     rank: i8
@@ -163,4 +163,124 @@ impl Square {
         self.rank
     }
 
+}
+
+impl Into<String> for Square {
+    fn into(self) -> String {
+        let rank = match self.rank {
+            7 => '8',
+            6 => '7',
+            5 => '6',
+            4 => '5',
+            3 => '4',
+            2 => '3',
+            1 => '2',
+            0 => '1',
+            _ => panic!("invalid")
+        };
+        let file = match self.file {
+            0 => 'A',
+            1 => 'B',
+            2 => 'C',
+            3 => 'D',
+            4 => 'E',
+            5 => 'F',
+            6 => 'G',
+            7 => 'H',
+            _ => panic!("invalid")
+        };
+
+        return format!("{}{}", file, rank);
+    }
+}
+
+impl TryFrom<&str> for Square {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut chars = value.chars();
+
+        let first = match chars.next() {
+            None => return Err(()),
+            Some(o) => o
+        };
+        let second = match chars.next() {
+            None => return Err(()),
+            Some(o) => o
+        };
+        if chars.next() != None {
+            return Err(());
+        }
+
+        let file = match first {
+            'A' => 0,
+            'B' => 1,
+            'C' => 2,
+            'D' => 3,
+            'E' => 4,
+            'F' => 5,
+            'G' => 6,
+            'H' => 7,
+            _ => return Err(())
+        };
+
+        let rank = match second {
+            '1' => 0,
+            '2' => 1,
+            '3' => 2,
+            '4' => 3,
+            '5' => 4,
+            '6' => 5,
+            '7' => 6,
+            '8' => 7,
+            _ => return Err(())
+        };
+
+        let ret = match Self::new_square_from_index(file, rank) {
+            Some(o) => o,
+            None => return Err(())
+        };
+
+        Ok(ret)
+
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pieces::PieceType;
+
+use super::*;
+
+    #[test]
+    fn first_square() {
+        let sq = Square::new_square_from_index(0, 0).unwrap();
+        let rook = Board::new_starting_board().get_piece_square(&sq).unwrap();
+        assert!(rook.is_white());
+        assert!(rook.piece_type() == PieceType::Rook);
+        let s: String = sq.into();
+        assert_eq!(s, "A1");
+    }
+
+    #[test]
+    fn pawn_square() {
+        let sq = Square::new_square_from_index(3, 6).unwrap();
+        let rook = Board::new_starting_board().get_piece_square(&sq).unwrap();
+        assert!(!rook.is_white());
+        assert!(rook.piece_type() == PieceType::Pawn);
+        let s: String = sq.into();
+        assert_eq!(s, "D7");
+    }
+
+    #[test]
+    fn back_and_forwth() {
+        for n in 0..7 {
+            for m in 0..7 {
+                let sq = Square::new_square_from_index(n, m).unwrap();
+                let c: String = sq.into();
+                let sq2 = Square::try_from(c.as_str()).unwrap();
+                assert_eq!(sq, sq2);
+            }
+        }
+    }
 }
