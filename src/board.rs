@@ -96,6 +96,24 @@ impl Board {
 
 }
 
+impl Into<String> for Board {
+    fn into(self) -> String {
+        let mut ret = String::new();
+        for n in 0..8 {
+            for m in 0..8 {
+                let n = 7 - n;
+                let sq = self.squares[m][n];
+                let mut letter = sq.map(|p| p.piece_type().into()).unwrap_or(' ');
+                if !sq.is_some_and(|p| p.is_white()) {
+                    letter = letter.to_ascii_lowercase()
+                }
+                ret.push(letter);
+            }
+        }
+        ret
+    }
+}
+
 // Struct for the file and rank of a square on the board
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Square {
@@ -282,5 +300,14 @@ use super::*;
                 assert_eq!(sq, sq2);
             }
         }
+    }
+
+    #[test]
+    fn rep() {
+        let b = Board::new_starting_board();
+        let s: String = b.into();
+        println!("{}", s);
+        let correct = "rnbqkbnrpppppppp                                PPPPPPPPRNBQKBNR";
+        assert_eq!(s, correct);
     }
 }
