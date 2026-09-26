@@ -3,7 +3,7 @@ use crate::pieces::{ChessPiece, PieceType};
 use crate::moves::Move;
 
 // Improved error handling for the API
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MoveError {
     InvalidNotation, // Notation wrong, like x9
     EmptySquare,     // Tried to move a empty square
