@@ -14,6 +14,7 @@ pub enum MoveError {
     InvalidPromotion // Can't promote to specific PieceType
 }
 
+#[derive(Clone)]
 pub struct ChessGame {
     // Current board layout
     board_state: Board,

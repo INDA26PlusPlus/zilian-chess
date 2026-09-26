@@ -10,6 +10,7 @@ and castling and en passant require more info than just a yes/no
 use crate::board::{Board, Square};
 use crate::pieces::PieceType;
 
+#[derive(Clone)]
 pub struct Move {
     // If a double pawn move has been made previously
     // Square is the skipped pawn square (behind the pawn that moved)
